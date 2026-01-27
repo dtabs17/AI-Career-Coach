@@ -8,7 +8,7 @@ import Skills from "./pages/Skills";
 import MySkills from "./pages/MySkills";
 import Profile from "./pages/Profile";
 import Home from "./pages/Home.jsx";
-
+import Recommendations from "./pages/Recommendations.jsx";
 
 export default function App() {
   return (
@@ -17,7 +17,7 @@ export default function App() {
       <Container className="py-4 app-page">
 
         <Routes>
-          <Route path="/" element={<Home />}/>
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
@@ -30,14 +30,19 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/profile"
+          <Route path="/profile"
             element={
               <ProtectedRoute>
                 <Profile />
               </ProtectedRoute>
-            }
-          />
+            } />
+
+          <Route path="/recommendations"
+            element={
+              <ProtectedRoute>
+                <Recommendations />
+              </ProtectedRoute>
+            } />
 
 
           <Route path="*" element={<div>Not found</div>} />

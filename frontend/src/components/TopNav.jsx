@@ -29,8 +29,15 @@ export default function TopNav() {
           <Nav className="me-auto">
             <Nav.Link as={NavLink} to="/">Home</Nav.Link>
             <Nav.Link as={NavLink} to="/skills">Skills</Nav.Link>
-            <Nav.Link as={NavLink} to="/my-skills">My Skills</Nav.Link>
-            <Nav.Link as={NavLink} to="/profile">Profile</Nav.Link>
+            {!isAuthed ? (
+              ""
+            ) : (
+              <>
+                <Nav.Link as={NavLink} to="/my-skills">My Skills</Nav.Link>
+                <Nav.Link as={NavLink} to="/profile">Profile</Nav.Link>
+                <Nav.Link as={NavLink} to="/recommendations">Recommendations</Nav.Link>
+              </>
+            )}
           </Nav>
 
           <Nav className="ms-auto">
