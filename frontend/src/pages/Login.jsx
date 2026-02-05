@@ -8,6 +8,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -18,41 +19,53 @@ export default function Login() {
     try {
       await login(email, password);
       navigate("/");
-    } catch (e) {
-      setErr(e.message);
+    } catch (e2) {
+      setErr(e2.message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="page-animate">
-      <Card className="shadow-sm">
-        <Card.Body>
-          <div className="mb-4">
-            <h3 className="mb-1" style={{ fontWeight: 650, letterSpacing: "-0.02em" }}>
-              Login
-            </h3>
-          </div>
-          {err ? <Alert variant="danger">{err}</Alert> : null}
+    <div className="page-animate auth-page">
+      <Card className="auth-card">
 
-          <Form onSubmit={onSubmit}>
+        <Card.Body>
+        
+          <h3 className="auth-title">Login</h3>
+
+          {err ? <Alert variant="danger" className="mt-3">{err}</Alert> : null}
+
+          <Form onSubmit={onSubmit} className="mt-3">
             <Form.Group className="mb-3">
               <Form.Label>Email</Form.Label>
-              <Form.Control value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
+              <Form.Control
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                autoComplete="email"
+                required
+              />
             </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Label>Password</Form.Label>
-              <Form.Control value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
+              <Form.Control
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                autoComplete="current-password"
+                required
+              />
             </Form.Group>
 
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="btn-primary w-100">
               {loading ? "Signing in..." : "Login"}
             </Button>
 
-            <div className="mt-3">
-              No account? <Link to="/register">Register</Link>
+            <div className="auth-foot">
+              <span className="text-muted">No account?</span>{" "}
+              <Link className="auth-link" to="/register">Register</Link>
             </div>
           </Form>
         </Card.Body>

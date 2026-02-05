@@ -18,6 +18,10 @@ app.use("/api/profile", require("./routes/profile"));
 app.use("/api/recommendations", require("./routes/recommendations"));
 app.use("/api/roles", require("./routes/roles"));
 
+app.use("/api/chat", require("./routes/chat"));
+app.use("/api/planner", require("./routes/planner"));
+
+
 app.use((err, req, res, next) => {
   console.error(err);
   const message = process.env.NODE_ENV === "production" ? "Server error" : (err.message || "Server error");

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Card, Button, Alert, Table, Collapse, Badge, Spinner, ButtonGroup } from "react-bootstrap";
 import { api } from "../api/client";
+import { useNavigate } from "react-router-dom";
+
 
 function safeNum(n) {
   const x = Number(n);
@@ -18,6 +20,8 @@ export default function Recommendations() {
   const [viewMode, setViewMode] = useState("final"); // "skills" | "final" | "preferred"
 
   const [executedAt, setExecutedAt] = useState(null);
+
+  const navigate = useNavigate();
 
 
   async function runNow() {
@@ -100,6 +104,11 @@ export default function Recommendations() {
                   "Run recommendations"
                 )}
               </Button>
+
+              <Button variant="outline-light" onClick={() => navigate("/recommendations/history")}>
+                History
+              </Button>
+
             </div>
           </div>
 
@@ -108,7 +117,7 @@ export default function Recommendations() {
           {run ? (
             <div className="mt-3 text-muted" style={{ fontSize: 12 }}>
               Last run: {new Date(executedAt || run.created_at).toLocaleString()}
-              
+
             </div>
           ) : null}
 

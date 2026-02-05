@@ -37,18 +37,16 @@ export default function Register() {
   }
 
   return (
-    <div className="page-animate">
-      <Card className="shadow-sm">
-        <Card.Body>
-          <div className="mb-4">
-            <h3 className="mb-1" style={{ fontWeight: 650, letterSpacing: "-0.02em" }}>
-              Create account
-            </h3>
-          </div>
-          
-          {err ? <Alert variant="danger">{err}</Alert> : null}
+    <div className="page-animate auth-page">
+      <Card className="auth-card">
 
-          <Form onSubmit={onSubmit}>
+        <Card.Body>
+          
+          <h3 className="auth-title">Create account</h3>
+
+          {err ? <Alert variant="danger" className="mt-3">{err}</Alert> : null}
+
+          <Form onSubmit={onSubmit} className="mt-3">
             <Form.Group className="mb-3">
               <Form.Label>Email</Form.Label>
               <Form.Control
@@ -86,12 +84,13 @@ export default function Register() {
               </Form.Control.Feedback>
             </Form.Group>
 
-            <Button type="submit" disabled={loading || !passwordsMatch}>
+            <Button type="submit" disabled={loading || !passwordsMatch} className="btn-primary w-100">
               {loading ? "Creating..." : "Register"}
             </Button>
 
-            <div className="mt-3">
-              Already have an account? <Link to="/login">Login</Link>
+            <div className="auth-foot">
+              <span className="text-muted">Already have an account?</span>{" "}
+              <Link className="auth-link" to="/login">Login</Link>
             </div>
           </Form>
         </Card.Body>

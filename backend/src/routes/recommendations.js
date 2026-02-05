@@ -73,10 +73,8 @@ router.post("/run", requireAuth, async (req, res, next) => {
   const userId = req.user.id;
   const topN = clamp(Number(req.body?.top_n ?? 10), 1, 25);
 
-  // bump when you change rules
   const algoVersion = "v2-preferences";
 
-  // preference constants
   const PREFERRED_ROLE_BONUS = 6;
   const MAX_TECH_BONUS = 4;
   const MAX_TOTAL_BONUS = 10;
@@ -85,7 +83,6 @@ router.post("/run", requireAuth, async (req, res, next) => {
 
   const client = await pool.connect();
   try {
-    // 1) load user skills
     const userSkillsRes = await client.query(
       `SELECT skill_id, proficiency_level
        FROM user_skills
@@ -97,7 +94,6 @@ router.post("/run", requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: "Add some skills before running recommendations." });
     }
 
-    // 2) load profile
     const profileRes = await client.query(
       `SELECT academic_focus, preferred_technologies, preferred_roles
        FROM profiles
@@ -112,8 +108,6 @@ router.post("/run", requireAuth, async (req, res, next) => {
 
     const preferredRolesSet = toLowerSet(preferredRoles);
     const preferredTechSet = toLowerSet(preferredTech);
-
-    // 3) snapshot + hash
     const inputSnapshot = {
       top_n: topN,
       skills: userSkillsRes.rows
@@ -139,7 +133,6 @@ router.post("/run", requireAuth, async (req, res, next) => {
 
     const inputHash = hashSnapshot(inputSnapshot);
 
-    // 4) upsert run but do NOT update created_at on conflict
     const runRes = await client.query(
       `INSERT INTO recommendation_runs (user_id, input_snapshot, input_hash, algo_version)
        VALUES ($1, $2::json, $3, $4)
@@ -153,7 +146,6 @@ router.post("/run", requireAuth, async (req, res, next) => {
     const inserted =
       run.inserted === true || run.inserted === "t" || run.inserted === 1;
 
-    // 5) cache hit: do not touch DB items, just return stored
     if (!inserted) {
       const itemsRes = await client.query(
         `SELECT
@@ -170,7 +162,6 @@ router.post("/run", requireAuth, async (req, res, next) => {
         [run.id]
       );
 
-      // if items were deleted somehow, fall through to recompute
       if (itemsRes.rowCount) {
         const all = itemsRes.rows.map((r) => {
           const explanation = parseJsonMaybe(r.explanation);
@@ -213,8 +204,6 @@ router.post("/run", requireAuth, async (req, res, next) => {
         });
       }
     }
-
-    // 6) compute scores (new snapshot or missing cached items)
 
     const userSkillMap = new Map();
     for (const r of userSkillsRes.rows) {
@@ -350,7 +339,6 @@ router.post("/run", requireAuth, async (req, res, next) => {
           .slice(0, topN)
       : [];
 
-    // 7) persist items only for new snapshot (or missing cached items)
     await client.query("BEGIN");
 
     await client.query(`DELETE FROM recommendation_items WHERE run_id = $1`, [run.id]);
@@ -366,7 +354,7 @@ router.post("/run", requireAuth, async (req, res, next) => {
       params.push(
         run.id,
         item.role_id,
-        item.final_score, // legacy NOT NULL score
+        item.final_score,
         item.competency_score,
         item.preference_bonus,
         item.final_score,
