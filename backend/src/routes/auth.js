@@ -2,7 +2,7 @@ const router = require("express").Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { pool } = require("../db");
-const { requireAuth } = require("../middleware/auth");
+const { requireAuth } = require("../middleware/auth_middleware");
 
 function setAuthCookie(res, userId) {
   const token = jwt.sign({}, process.env.JWT_SECRET, {
@@ -13,7 +13,7 @@ function setAuthCookie(res, userId) {
   res.cookie(process.env.COOKIE_NAME || "access_token", token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 }

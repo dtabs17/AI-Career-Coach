@@ -1,6 +1,6 @@
 const router = require("express").Router();
 const { pool } = require("../db");
-const { requireAuth } = require("../middleware/auth");
+const { requireAuth } = require("../middleware/auth_middleware");
 const { generateCoachReply } = require("../utils/openai");
 
 const DEFAULT_TITLE = "New Chat";
@@ -185,20 +185,29 @@ router.get("/sessions/:sessionId/messages", requireAuth, async (req, res, next) 
     client.release();
   }
 });
-
 router.post("/sessions/:sessionId/messages", requireAuth, async (req, res, next) => {
   const userId = req.user.id;
   const sessionId = Number(req.params.sessionId);
+  
   const content = String(req.body?.content || "").trim();
 
-  if (!Number.isFinite(sessionId)) return res.status(400).json({ error: "Invalid session id" });
-  if (!content) return res.status(400).json({ error: "Message content required" });
-  if (content.length > 4000) return res.status(400).json({ error: "Message too long" });
+  if (!Number.isFinite(sessionId))
+    return res.status(400).json({ error: "Invalid session id" });
+  if (!content)
+    return res.status(400).json({ error: "Message content required" });
+  if (content.length > 4000)
+    return res.status(400).json({ error: "Message too long" });
+
+  const LOCK_NS = 7711;
+  const lockKey1 = LOCK_NS;
+  const lockKey2 = sessionId;
 
   const client = await pool.connect();
+
   try {
     const owner = await assertSessionOwner(client, sessionId, userId);
     if (!owner.ok) return res.status(owner.status).json({ error: owner.error });
+    await client.query("SELECT pg_advisory_lock($1::int, $2::int)", [lockKey1, lockKey2]);
 
     await client.query("BEGIN");
 
@@ -209,6 +218,26 @@ router.post("/sessions/:sessionId/messages", requireAuth, async (req, res, next)
       [sessionId, content]
     );
     const userMsg = userMsgRes.rows[0];
+
+    const countRes = await client.query(
+      `SELECT COUNT(*)::int AS cnt
+       FROM chat_messages
+       WHERE session_id = $1 AND role = 'user'`,
+      [sessionId]
+    );
+    const userMsgCount = countRes.rows[0]?.cnt ?? 0;
+
+    if (userMsgCount === 1) {
+      const title = makeChatTitle(content);
+      await client.query(
+        `UPDATE chat_sessions
+         SET title = $1
+         WHERE id = $2 AND user_id = $3 AND (title IS NULL OR title = $4)`,
+        [title, sessionId, userId, DEFAULT_TITLE]
+      );
+    }
+
+    await client.query("COMMIT");
 
     const profileRes = await client.query(
       `SELECT
@@ -244,46 +273,29 @@ router.post("/sessions/:sessionId/messages", requireAuth, async (req, res, next)
       [sessionId]
     );
 
-    const context = contextRes.rows
-      .reverse()
-      .map((m) => ({ role: m.role, content: m.content }));
+    const context = contextRes.rows.reverse().map((m) => ({ role: m.role, content: m.content }));
 
-    const assistantText = await generateCoachReply({
-      messages: context,
-      profile,
-      skills,
-    });
+    let assistantText = "";
+    try {
+      assistantText = await generateCoachReply({ messages: context, profile, skills });
+    } catch {
+      assistantText = "";
+    }
+
+    const finalAssistantText =
+      (assistantText || "").trim() || "I could not generate a response. Try again.";
+    await client.query("BEGIN");
 
     const assistantMsgRes = await client.query(
       `INSERT INTO chat_messages (session_id, role, content)
        VALUES ($1, 'assistant', $2)
        RETURNING id, session_id, role, content, created_at`,
-      [sessionId, assistantText || "I could not generate a response. Try again."]
+      [sessionId, finalAssistantText]
     );
-
-    const countRes = await client.query(
-      `SELECT COUNT(*)::int AS cnt
-       FROM chat_messages
-       WHERE session_id = $1 AND role = 'user'`,
-      [sessionId]
-    );
-
-    const userMsgCount = countRes.rows[0]?.cnt ?? 0;
-
-    if (userMsgCount === 1) {
-      const title = makeChatTitle(content);
-
-      await client.query(
-        `UPDATE chat_sessions
-         SET title = $1
-         WHERE id = $2 AND user_id = $3 AND (title IS NULL OR title = $4)`,
-        [title, sessionId, userId, DEFAULT_TITLE]
-      );
-    }
 
     await client.query("COMMIT");
 
-    res.status(201).json({
+    return res.status(201).json({
       user: userMsg,
       assistant: assistantMsgRes.rows[0],
     });
@@ -293,8 +305,12 @@ router.post("/sessions/:sessionId/messages", requireAuth, async (req, res, next)
     } catch { }
     next(err);
   } finally {
+    try {
+      await client.query("SELECT pg_advisory_unlock($1::int, $2::int)", [lockKey1, lockKey2]);
+    } catch { }
     client.release();
   }
 });
+
 
 module.exports = router;

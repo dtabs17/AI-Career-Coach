@@ -76,8 +76,10 @@ export default function Chat() {
         }
       }
     } catch (e) {
-      if (e.status === 401) navigate("/login");
-      else setErr(e.message);
+      if (e.status === 401)
+        navigate("/login");
+      else
+        setErr(e.message);
     } finally {
       setLoadingSessions(false);
     }
@@ -233,16 +235,13 @@ export default function Chat() {
 
     try {
       await api(`/api/chat/sessions/${sessionId}`, { method: "DELETE" });
-
-      // remove locally first for instant UI update
       const nextSessions = (sessions || []).filter((s) => Number(s.id) !== Number(sessionId));
       setSessions(nextSessions);
 
       setTabs((prev) => (prev || []).filter((t) => Number(t.id) !== Number(sessionId)));
 
-      if (Number(renamingId) === Number(sessionId)) cancelRename();
-
-      // if deleting active chat, pick next
+      if (Number(renamingId) === Number(sessionId))
+        cancelRename();
       if (Number(activeId) === Number(sessionId)) {
         const nextId = nextSessions[0]?.id || null;
         setActiveId(nextId);
@@ -261,7 +260,6 @@ export default function Chat() {
         }
       }
 
-      // sync ordering from server
       await loadSessions({ selectFirst: false });
     } catch (e) {
       if (e.status === 401) navigate("/login");
@@ -273,7 +271,6 @@ export default function Chat() {
 
   useEffect(() => {
     loadSessions({ selectFirst: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const emptyPrompts = [
@@ -475,9 +472,9 @@ export default function Chat() {
           {!activeId ? (
             <div className="chat-empty">
               <div className="chat-empty-icon">✿</div>
-              <div className="chat-empty-title">Let’s chat! What’s on your mind?</div>
+              <div className="chat-empty-title">Let's chat! What's on your mind?</div>
               <div className="chat-empty-sub">
-                Choose a prompt below or start typing. I’ll help with whatever you need.
+                Choose a prompt below or start typing. I'll help with whatever you need.
               </div>
 
               <div className="chat-empty-prompts">
@@ -503,7 +500,7 @@ export default function Chat() {
           ) : messages.length === 0 ? (
             <div className="chat-empty">
               <div className="chat-empty-icon">✿</div>
-              <div className="chat-empty-title">Let’s chat! What’s on your mind?</div>
+              <div className="chat-empty-title">Let's chat! What's on your mind?</div>
               <div className="chat-empty-sub">Try a prompt or ask a question to begin.</div>
 
               <div className="chat-empty-prompts">

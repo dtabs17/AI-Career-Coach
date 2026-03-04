@@ -16,6 +16,7 @@ import SidebarNav from "./components/SideBar.jsx";
 import AppTopBar from "./components/AppTopBar.jsx";
 import FloatingChatButton from "./components/FloatingChatButton.jsx";
 import Planner from "./pages/Planner.jsx";
+import Interviews from "./pages/Interviews.jsx";
 import { useAuth } from "./auth/AuthContext";
 
 function PublicTopNav() {
@@ -92,6 +93,7 @@ function AppLayout() {
             <Route path="/recommendations/history" element={<ProtectedRoute><RecommendationHistory /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
             <Route path="/planner" element={<ProtectedRoute><Planner /></ProtectedRoute>} />
+            <Route path="/interviews" element={<ProtectedRoute><Interviews /></ProtectedRoute>} />
             <Route path="*" element={<div>Not found</div>} />
           </Routes>
         </main>

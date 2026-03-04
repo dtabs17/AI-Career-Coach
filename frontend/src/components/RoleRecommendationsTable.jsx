@@ -57,7 +57,7 @@ export default function RoleRecommendationsTable({
             const partial = exp?.summary?.partial_count ?? exp?.partial?.length ?? 0;
             const missing = exp?.summary?.missing_count ?? exp?.missing?.length ?? 0;
 
-            const pref = exp?.preference || null;
+            const pref = r.preference || exp?.preference || null;
             const isPreferredRole = pref?.is_preferred_role ? true : false;
             const techOverlapCount = safeNum(pref?.tech_overlap_count);
 

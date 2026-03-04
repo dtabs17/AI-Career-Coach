@@ -86,6 +86,10 @@ export default function Sidebar() {
         <span>Planner</span>
       </NavLink>
 
+      <NavLink to="/interviews" className={linkClass}>
+        <span className="sb-ico" aria-hidden="true">🎤</span>
+        <span>Interviews</span>
+      </NavLink>
 
       <div className="sb-footer">
         <div className="sb-footdot" aria-hidden="true" />

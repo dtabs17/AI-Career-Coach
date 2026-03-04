@@ -1,6 +1,6 @@
 const router = require("express").Router();
 const { pool } = require("../db");
-const { requireAuth } = require("../middleware/auth");
+const { requireAuth } = require("../middleware/auth_middleware");
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
