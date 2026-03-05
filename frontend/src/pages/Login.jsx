@@ -1,16 +1,19 @@
 import { useState } from "react";
-import { Card, Form, Button, Alert } from "react-bootstrap";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import {
+  Box, Paper, Typography, TextField, Button,
+  Alert, CircularProgress,
+} from "@mui/material";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [err, setErr] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [err, setErr]           = useState("");
+  const [loading, setLoading]   = useState(false);
 
-  const navigate = useNavigate();
-  const { login } = useAuth();
+  const navigate    = useNavigate();
+  const { login }   = useAuth();
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -27,49 +30,97 @@ export default function Login() {
   }
 
   return (
-    <div className="page-animate auth-page">
-      <Card className="auth-card">
-
-        <Card.Body>
+    <Box sx={{
+      minHeight: "100vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      px: 2,
+    }}>
+      <Paper sx={{
+        width: "100%",
+        maxWidth: 420,
+        p: { xs: 3, sm: 4 },
         
-          <h3 className="auth-title">Login</h3>
+        "&:hover": { transform: "none" },
+      }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3.5 }}>
+          <Box sx={{
+            width: 34, height: 34, borderRadius: "10px",
+            display: "grid", placeItems: "center", fontSize: "16px",
+            background: "linear-gradient(135deg, rgba(245,158,11,0.88), rgba(251,113,133,0.65))",
+            boxShadow: "0 6px 20px rgba(0,0,0,0.28)",
+            flexShrink: 0,
+          }}>
+            ✨
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 750, fontSize: "0.875rem", color: "#f1f0ff", lineHeight: 1.2 }}>
+              AI Career Coach
+            </Typography>
+            <Typography sx={{ fontSize: "0.70rem", color: "rgba(241,240,255,0.40)" }}>
+              Student dashboard
+            </Typography>
+          </Box>
+        </Box>
 
-          {err ? <Alert variant="danger" className="mt-3">{err}</Alert> : null}
+        <Typography variant="h5" sx={{ mb: 0.5 }}>Welcome back</Typography>
+        <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
+          Sign in to your account to continue.
+        </Typography>
 
-          <Form onSubmit={onSubmit} className="mt-3">
-            <Form.Group className="mb-3">
-              <Form.Label>Email</Form.Label>
-              <Form.Control
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                type="email"
-                autoComplete="email"
-                required
-              />
-            </Form.Group>
+        {err && <Alert severity="error" sx={{ mb: 2.5 }}>{err}</Alert>}
 
-            <Form.Group className="mb-3">
-              <Form.Label>Password</Form.Label>
-              <Form.Control
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                autoComplete="current-password"
-                required
-              />
-            </Form.Group>
+        <Box component="form" onSubmit={onSubmit} noValidate>
+          <TextField
+            label="Email"
+            type="email"
+            fullWidth
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            required
+            sx={{ mb: 2 }}
+          />
 
-            <Button type="submit" disabled={loading} className="btn-primary w-100">
-              {loading ? "Signing in..." : "Login"}
-            </Button>
+          <TextField
+            label="Password"
+            type="password"
+            fullWidth
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+            sx={{ mb: 3 }}
+          />
 
-            <div className="auth-foot">
-              <span className="text-muted">No account?</span>{" "}
-              <Link className="auth-link" to="/register">Register</Link>
-            </div>
-          </Form>
-        </Card.Body>
-      </Card>
-    </div>
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={15} sx={{ color: "rgba(255,255,255,0.65)" }} /> : null}
+          >
+            {loading ? "Signing in..." : "Login"}
+          </Button>
+        </Box>
+
+        <Typography variant="body2" sx={{ mt: 2.5, textAlign: "center", color: "text.secondary" }}>
+          No account?{" "}
+          <Box
+            component={Link}
+            to="/register"
+            sx={{
+              color: "#f59e0b",
+              textDecoration: "none",
+              fontWeight: 650,
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
+            Register
+          </Box>
+        </Typography>
+      </Paper>
+    </Box>
   );
 }

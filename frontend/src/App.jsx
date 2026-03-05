@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, useLocation, NavLink } from "react-router-dom";
+import { ThemeProvider } from "@mui/material/styles";
+import appTheme from "./theme.js";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-
 import Home from "./pages/Home.jsx";
 import Skills from "./pages/Skills";
 import MySkills from "./pages/MySkills";
@@ -11,7 +12,6 @@ import Profile from "./pages/Profile";
 import Recommendations from "./pages/Recommendations.jsx";
 import RecommendationHistory from "./pages/RecommendationHistory.jsx";
 import Chat from "./pages/Chat.jsx";
-
 import SidebarNav from "./components/SideBar.jsx";
 import AppTopBar from "./components/AppTopBar.jsx";
 import FloatingChatButton from "./components/FloatingChatButton.jsx";
@@ -46,24 +46,23 @@ function PublicTopNav() {
 
 
 
-
 function AppLayout() {
   const { pathname } = useLocation();
   const { isAuthed } = useAuth();
 
   const isAuthRoute = pathname === "/login" || pathname === "/register";
+
   if (!isAuthed) {
     return (
       <div className="public-shell">
         <PublicTopNav />
-
         <main className={isAuthRoute ? "public-content auth-in-public" : "public-content"}>
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/skills" element={<Skills />} />
-            <Route path="/login" element={<Login />} />
+            <Route path="/"         element={<Home />} />
+            <Route path="/skills"   element={<Skills />} />
+            <Route path="/login"    element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="*" element={<Home />} />
+            <Route path="*"         element={<Home />} />
           </Routes>
         </main>
       </div>
@@ -85,16 +84,16 @@ function AppLayout() {
           <FloatingChatButton />
 
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/skills" element={<Skills />} />
-            <Route path="/my-skills" element={<ProtectedRoute><MySkills /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="/recommendations" element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />
+            <Route path="/"                        element={<Home />} />
+            <Route path="/skills"                  element={<Skills />} />
+            <Route path="/my-skills"               element={<ProtectedRoute><MySkills /></ProtectedRoute>} />
+            <Route path="/profile"                 element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/recommendations"         element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />
             <Route path="/recommendations/history" element={<ProtectedRoute><RecommendationHistory /></ProtectedRoute>} />
-            <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-            <Route path="/planner" element={<ProtectedRoute><Planner /></ProtectedRoute>} />
-            <Route path="/interviews" element={<ProtectedRoute><Interviews /></ProtectedRoute>} />
-            <Route path="*" element={<div>Not found</div>} />
+            <Route path="/chat"                    element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+            <Route path="/planner"                 element={<ProtectedRoute><Planner /></ProtectedRoute>} />
+            <Route path="/interviews"              element={<ProtectedRoute><Interviews /></ProtectedRoute>} />
+            <Route path="*"                        element={<div>Not found</div>} />
           </Routes>
         </main>
       </div>
@@ -102,11 +101,12 @@ function AppLayout() {
   );
 }
 
-
 export default function App() {
   return (
     <BrowserRouter>
-      <AppLayout />
+      <ThemeProvider theme={appTheme}>
+        <AppLayout />
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

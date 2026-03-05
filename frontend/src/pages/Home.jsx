@@ -1,16 +1,89 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card, Button, Row, Col, Badge, ProgressBar, Spinner } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
+import {
+  Box, Paper, Typography, Button, Chip,
+  LinearProgress, CircularProgress, Divider,
+} from "@mui/material";
+import {
+  AutoAwesome, TrendingUp, Chat, ArrowForward,
+} from "@mui/icons-material";
 
 function fmt(ts) {
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return "";
-  }
+  try { return new Date(ts).toLocaleString(); } catch { return ""; }
 }
+
+
+
+function StatCard({ label, value }) {
+  return (
+    <Box sx={{
+      flex: 1,
+      border: "1px solid rgba(255,255,255,0.07)",
+      bgcolor: "rgba(18,17,26,0.45)",
+      borderRadius: "14px",
+      p: 1.5,
+    }}>
+      <Typography sx={{ fontSize: "0.72rem", color: "text.secondary", mb: 0.5 }}>{label}</Typography>
+      <Typography sx={{ fontWeight: 850, fontSize: 26, lineHeight: 1, color: "#f1f0ff" }}>{value}</Typography>
+    </Box>
+  );
+}
+
+
+
+function StepButton({ label, to }) {
+  return (
+    <Box
+      component={Link}
+      to={to}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        px: 2,
+        py: 1.5,
+        borderRadius: "12px",
+        border: "1px solid rgba(255,255,255,0.08)",
+        bgcolor: "rgba(18,17,26,0.35)",
+        color: "rgba(241,240,255,0.85)",
+        textDecoration: "none",
+        fontSize: "0.875rem",
+        fontWeight: 500,
+        fontFamily: "Manrope, system-ui, sans-serif",
+        transition: "all 140ms ease",
+        "&:hover": {
+          border: "1px solid rgba(245,158,11,0.30)",
+          bgcolor: "rgba(245,158,11,0.04)",
+          color: "#f1f0ff",
+        },
+      }}
+    >
+      {label}
+      <ArrowForward sx={{ fontSize: 15, opacity: 0.45, flexShrink: 0 }} />
+    </Box>
+  );
+}
+
+
+
+function BulletItem({ title, sub }) {
+  return (
+    <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+      <Box sx={{
+        width: 7, height: 7, borderRadius: "50%", flexShrink: 0, mt: 0.6,
+        background: "linear-gradient(135deg, #f59e0b, #fb7185)",
+      }} />
+      <Box>
+        <Typography sx={{ fontWeight: 650, fontSize: "0.875rem", color: "#f1f0ff" }}>{title}</Typography>
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>{sub}</Typography>
+      </Box>
+    </Box>
+  );
+}
+
+
 
 export default function Home() {
   const { isAuthed, firstName } = useAuth();
@@ -18,25 +91,22 @@ export default function Home() {
   const [profileCompletion, setProfileCompletion] = useState(0);
   const [skillsAdded, setSkillsAdded] = useState(0);
   const [skillsWithEvidence, setSkillsWithEvidence] = useState(0);
+  const [loadingChats, setLoadingChats] = useState(false);
+  const [recentChats, setRecentChats] = useState([]);
 
   useEffect(() => {
     if (!isAuthed) return;
-
     let mounted = true;
-
     (async () => {
       try {
         const [profile, userSkills] = await Promise.all([
           api("/api/profile"),
           api("/api/user-skills"),
         ]);
-
         if (!mounted) return;
-
         const skills = Array.isArray(userSkills) ? userSkills : [];
         setSkillsAdded(skills.length);
         setSkillsWithEvidence(skills.filter((s) => s.evidence).length);
-
         if (profile) {
           const checks = [
             Boolean(profile.full_name),
@@ -48,8 +118,7 @@ export default function Home() {
             Array.isArray(profile.preferred_roles) && profile.preferred_roles.length > 0,
             skills.length > 0,
           ];
-          const filled = checks.filter(Boolean).length;
-          setProfileCompletion(Math.round((filled / checks.length) * 100));
+          setProfileCompletion(Math.round((checks.filter(Boolean).length / checks.length) * 100));
         } else {
           setProfileCompletion(skills.length > 0 ? 12 : 0);
         }
@@ -57,31 +126,14 @@ export default function Home() {
         //
       }
     })();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [isAuthed]);
 
-  const nextSteps = useMemo(
-    () => [
-      { label: "Add evidence for 3 skills", to: "/my-skills" },
-      { label: "Set preferred roles in your profile", to: "/profile" },
-      { label: "Run recommendations", to: "/recommendations" },
-    ],
-    []
-  );
-
-  const [loadingChats, setLoadingChats] = useState(false);
-  const [recentChats, setRecentChats] = useState([]);
-
   useEffect(() => {
+    if (!isAuthed) return;
     let mounted = true;
-
-    async function loadChats() {
-      if (!isAuthed) return;
-
-      setLoadingChats(true);
+    setLoadingChats(true);
+    (async () => {
       try {
         const list = await api("/api/chat/sessions");
         const arr = Array.isArray(list) ? list : [];
@@ -90,376 +142,265 @@ export default function Home() {
           title: s.title || "New Chat",
           when: fmt(s.last_message_at || s.created_at),
         }));
-
         if (mounted) setRecentChats(top);
       } catch {
         if (mounted) setRecentChats([]);
       } finally {
         if (mounted) setLoadingChats(false);
       }
-    }
-
-    loadChats();
-    return () => {
-      mounted = false;
-    };
+    })();
+    return () => { mounted = false; };
   }, [isAuthed]);
+
+  const nextSteps = useMemo(() => [
+    { label: "Add evidence for 3 skills", to: "/my-skills" },
+    { label: "Set preferred roles in your profile", to: "/profile" },
+    { label: "Run recommendations", to: "/recommendations" },
+  ], []);
+
+
 
   if (!isAuthed) {
     return (
-      <div className="page-animate public-home">
-        <Card className="public-home-hero">
-          <Card.Body>
-            <div>
-              <h1 className="page-title">Welcome</h1>
-              <p className="page-subtitle">
-                Browse the skills library without an account. Create an account to save skills, build your profile,
-                generate role recommendations, and use coach chat.
-              </p>
-            </div>
+      <Box className="page-animate" sx={{ maxWidth: 1100, mx: "auto", px: { xs: 2, md: 3 }, py: 4 }}>
+        <Paper sx={{ p: { xs: 3, md: 4 }, mb: 3, "&:hover": { transform: "none" } }}>
+          <Typography variant="h4" sx={{ mb: 1 }}>Welcome</Typography>
+          <Typography sx={{ color: "text.secondary", maxWidth: 560, mb: 3.5 }}>
+            Browse the skills library without an account. Create an account to save skills,
+            build your profile, generate role recommendations, and use coach chat.
+          </Typography>
 
-            <Row className="g-3 mt-2">
-              <Col md={4}>
-                <Card className="h-100 public-home-action">
-                  <Card.Body className="d-flex flex-column">
-                    <Card.Title className="mb-2">Skills Library</Card.Title>
-                    <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
-                      Browse skills and see what you can add later.
-                    </div>
-                    <Button as={Link} to="/skills" className="btn-primary w-100 mt-auto">
-                      View skills
-                    </Button>
-                  </Card.Body>
-                </Card>
-              </Col>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 2 }}>
+            {[
+              { title: "Skills Library", sub: "Browse skills and see what you can add later.", to: "/skills", cta: "View skills" },
+              { title: "Login", sub: "Access your dashboard, skills, recommendations, and chat.", to: "/login", cta: "Login" },
+              { title: "Register", sub: "Create an account to unlock all features.", to: "/register", cta: "Create account" },
+            ].map(({ title, sub, to, cta }) => (
+              <Paper
+                key={title}
+                sx={{
+                  p: 2.5,
+                  display: "flex", flexDirection: "column",
+                  bgcolor: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  "&:hover": { transform: "translateY(-2px)" },
+                }}
+              >
+                <Typography sx={{ fontWeight: 700, mb: 0.75 }}>{title}</Typography>
+                <Typography variant="body2" sx={{ color: "text.secondary", mb: 2, flexGrow: 1 }}>{sub}</Typography>
+                <Button variant="contained" component={Link} to={to} fullWidth>{cta}</Button>
+              </Paper>
+            ))}
+          </Box>
+        </Paper>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "7fr 5fr" }, gap: 2.5 }}>
+          <Paper sx={{ p: 3, "&:hover": { transform: "none" } }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.5 }}>
+              <Typography sx={{ fontWeight: 750 }}>What you can do now</Typography>
+              <Chip label="Open" size="small" sx={{ bgcolor: "rgba(34,197,94,0.12)", color: "#86efac", border: "1px solid rgba(34,197,94,0.22)" }} />
+            </Box>
+            <Box sx={{ display: "grid", gap: 1.5, mb: 3 }}>
+              <BulletItem title="Browse all skills" sub="Explore the library and categories." />
+              <BulletItem title="See how the system works" sub="Create an account when you're ready to save progress." />
+              <BulletItem title="Login or register anytime" sub="Your dashboard is available right after signup." />
+            </Box>
+            <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+              <Button variant="outlined" color="secondary" component={Link} to="/skills">Browse skills</Button>
+              <Button variant="outlined" color="secondary" component={Link} to="/register">Create account</Button>
+            </Box>
+          </Paper>
 
-              <Col md={4}>
-                <Card className="h-100 public-home-action">
-                  <Card.Body className="d-flex flex-column">
-                    <Card.Title className="mb-2">Login</Card.Title>
-                    <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
-                      Access your dashboard, skills, recommendations, and chat.
-                    </div>
-                    <Button as={Link} to="/login" className="btn-primary w-100 mt-auto">
-                      Login
-                    </Button>
-                  </Card.Body>
-                </Card>
-              </Col>
-
-              <Col md={4}>
-                <Card className="h-100 public-home-action">
-                  <Card.Body className="d-flex flex-column">
-                    <Card.Title className="mb-2">Register</Card.Title>
-                    <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
-                      Create an account to unlock profile, recommendations, and coach chat.
-                    </div>
-                    <Button as={Link} to="/register" className="btn-primary w-100 mt-auto">
-                      Create account
-                    </Button>
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
-
-        <Row className="g-3 mt-3">
-          <Col lg={7}>
-            <Card className="public-home-panel">
-              <Card.Body>
-                <div className="d-flex align-items-center justify-content-between">
-                  <div style={{ fontWeight: 750 }}>What you can do now</div>
-                  <Badge className="pill-badge pill-badge-open">Open</Badge>
-                </div>
-
-                <div className="mt-3 public-home-list">
-                  <div className="public-home-list-item">
-                    <div className="public-home-bullet" />
-                    <div>
-                      <div className="public-home-list-title">Browse all skills</div>
-                      <div className="public-home-list-sub">Explore the library and categories.</div>
-                    </div>
-                  </div>
-
-                  <div className="public-home-list-item">
-                    <div className="public-home-bullet" />
-                    <div>
-                      <div className="public-home-list-title">See how the system works</div>
-                      <div className="public-home-list-sub">Create an account when you’re ready to save progress.</div>
-                    </div>
-                  </div>
-
-                  <div className="public-home-list-item">
-                    <div className="public-home-bullet" />
-                    <div>
-                      <div className="public-home-list-title">Login or register anytime</div>
-                      <div className="public-home-list-sub">Your dashboard is available right after signup.</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3 d-flex gap-2 flex-wrap">
-                  <Button as={Link} to="/skills" variant="outline-light" className="btn-outline-pill">
-                    Browse skills
-                  </Button>
-                  <Button as={Link} to="/register" variant="outline-light" className="btn-outline-pill">
-                    Create account
-                  </Button>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-
-          <Col lg={5}>
-            <Card className="public-home-panel">
-              <Card.Body>
-                <div style={{ fontWeight: 750 }}>Next steps</div>
-                <div className="text-muted" style={{ fontSize: 13, marginTop: 6 }}>
-                  Create an account to unlock recommendations and coach chat.
-                </div>
-
-                <div className="mt-3" style={{ display: "grid", gap: 10 }}>
-                  <Button as={Link} to="/register" variant="outline-light" className="public-home-step">
-                    Create your account
-                  </Button>
-                  <Button as={Link} to="/login" variant="outline-light" className="public-home-step">
-                    Login to your dashboard
-                  </Button>
-                  <Button as={Link} to="/skills" variant="outline-light" className="public-home-step">
-                    Browse skills library
-                  </Button>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      </div>
+          <Paper sx={{ p: 3, "&:hover": { transform: "none" } }}>
+            <Typography sx={{ fontWeight: 750, mb: 0.75 }}>Next steps</Typography>
+            <Typography variant="body2" sx={{ color: "text.secondary", mb: 2.5 }}>
+              Create an account to unlock recommendations and coach chat.
+            </Typography>
+            <Box sx={{ display: "grid", gap: 1.5 }}>
+              <StepButton label="Create your account" to="/register" />
+              <StepButton label="Login to your dashboard" to="/login" />
+              <StepButton label="Browse skills library" to="/skills" />
+            </Box>
+          </Paper>
+        </Box>
+      </Box>
     );
   }
 
+
+
   return (
-    <div className="page-animate">
-      <Card>
-        <Card.Body>
-          <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
-            <div>
-              <h1 className="page-title">{`Welcome, ${firstName || ""}`}</h1>
-              <p className="page-subtitle">
-                Track your skills, get role recommendations, and improve your interview performance.
-              </p>
-            </div>
-          </div>
+    <Box className="page-animate page-content">
 
-          <Row className="g-3 mt-2">
-            <Col md={4}>
-              <Card className="h-100">
-                <Card.Body className="d-flex flex-column">
-                  <Card.Title className="mb-2">Skills Library</Card.Title>
-                  <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
-                    Browse skills and build your profile.
-                  </div>
-                  <Button as={Link} to="/skills" className="btn-primary w-100 mt-auto">
-                    View skills
-                  </Button>
-                </Card.Body>
-              </Card>
-            </Col>
+      { }
+      <Paper sx={{ p: { xs: 3, md: 4 }, mb: 3, "&:hover": { transform: "none" } }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 2 }}>
+          <Box>
+            <Typography variant="h4" sx={{ mb: 0.5 }}>Welcome, {firstName || ""}</Typography>
+            <Typography sx={{ color: "text.secondary" }}>
+              Track your skills, get role recommendations, and improve your interview performance.
+            </Typography>
+          </Box>
+        </Box>
 
-            <Col md={4}>
-              <Card className="h-100">
-                <Card.Body className="d-flex flex-column">
-                  <Card.Title className="mb-2">My Skills</Card.Title>
-                  <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
-                    Add skill levels and evidence.
-                  </div>
-                  <Button as={Link} to="/my-skills" className="btn-primary w-100 mt-auto">
-                    Manage my skills
-                  </Button>
-                </Card.Body>
-              </Card>
-            </Col>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 2, mt: 3 }}>
+          {[
+            { title: "Skills Library", sub: "Browse skills and build your profile.", to: "/skills", cta: "View skills" },
+            { title: "My Skills", sub: "Add skill levels and evidence.", to: "/my-skills", cta: "Manage my skills" },
+            { title: "Profile", sub: "Set interests, preferred roles, and technologies.", to: "/profile", cta: "Edit profile" },
+          ].map(({ title, sub, to, cta }) => (
+            <Paper
+              key={title}
+              sx={{
+                p: 2.5, display: "flex", flexDirection: "column",
+                bgcolor: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                "&:hover": { transform: "translateY(-2px)" },
+              }}
+            >
+              <Typography sx={{ fontWeight: 700, mb: 0.75 }}>{title}</Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary", mb: 2, flexGrow: 1 }}>{sub}</Typography>
+              <Button variant="contained" component={Link} to={to} fullWidth>{cta}</Button>
+            </Paper>
+          ))}
+        </Box>
+      </Paper>
 
-            <Col md={4}>
-              <Card className="h-100">
-                <Card.Body className="d-flex flex-column">
-                  <Card.Title className="mb-2">Profile</Card.Title>
-                  <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
-                    Set interests, preferred roles, and technologies.
-                  </div>
-                  <Button as={Link} to="/profile" className="btn-primary w-100 mt-auto">
-                    Edit profile
-                  </Button>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+      { }
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "7fr 5fr" }, gap: 2.5 }}>
+        <Box sx={{ display: "grid", gap: 2.5 }}>
 
-      <Row className="g-3 mt-3">
-        <Col lg={7}>
-          <Card className="mb-3">
-            <Card.Body>
-              <div className="d-flex align-items-center justify-content-between">
-                <div style={{ fontWeight: 750 }}>Your progress</div>
-                <Badge bg="secondary" style={{ background: "rgba(255,255,255,0.08)" }}>
-                  This week
-                </Badge>
-              </div>
+          { }
+          <Paper sx={{ p: 3, "&:hover": { transform: "none" } }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <TrendingUp sx={{ fontSize: 18, color: "#f59e0b" }} />
+                <Typography sx={{ fontWeight: 750 }}>Your progress</Typography>
+              </Box>
+              <Chip
+                label="This week"
+                size="small"
+                sx={{ bgcolor: "rgba(255,255,255,0.06)", color: "text.secondary", border: "1px solid rgba(255,255,255,0.08)" }}
+              />
+            </Box>
 
-              <div className="mt-3">
-                <div className="d-flex justify-content-between align-items-center">
-                  <div className="text-muted" style={{ fontSize: 13 }}>
-                    Profile completion
-                  </div>
-                  <div style={{ fontWeight: 700 }}>{profileCompletion}%</div>
-                </div>
-                <ProgressBar now={profileCompletion} style={{ height: 10, borderRadius: 999, marginTop: 8 }} />
-              </div>
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>Profile completion</Typography>
+              <Typography sx={{ fontWeight: 700, fontSize: "0.875rem" }}>{profileCompletion}%</Typography>
+            </Box>
+            <LinearProgress variant="determinate" value={profileCompletion} sx={{ mb: 3 }} />
 
-              <Row className="g-2 mt-3">
-                <Col sm={6}>
-                  <div
-                    style={{
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      background: "rgba(18,17,26,0.35)",
-                      borderRadius: 14,
-                      padding: 12,
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <StatCard label="Skills added" value={skillsAdded} />
+              <StatCard label="Skills with evidence" value={skillsWithEvidence} />
+            </Box>
+          </Paper>
+
+          { }
+          <Paper sx={{ p: 3, "&:hover": { transform: "none" } }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Chat sx={{ fontSize: 18, color: "#a78bfa" }} />
+                <Typography sx={{ fontWeight: 750 }}>Recent chats</Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                color="secondary"
+                size="small"
+                component={Link}
+                to="/chat"
+                sx={{ borderRadius: "10px" }}
+              >
+                Open chat
+              </Button>
+            </Box>
+
+            {loadingChats ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
+                <CircularProgress size={14} />
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>Loading...</Typography>
+              </Box>
+            ) : recentChats.length === 0 ? (
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>No chats yet.</Typography>
+            ) : (
+              <Box sx={{ display: "grid", gap: 1.5 }}>
+                {recentChats.map((c) => (
+                  <Box
+                    key={c.id}
+                    sx={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2,
+                      border: "1px solid rgba(255,255,255,0.07)",
+                      bgcolor: "rgba(18,17,26,0.35)",
+                      borderRadius: "12px",
+                      px: 2, py: 1.5,
                     }}
                   >
-                    <div className="text-muted" style={{ fontSize: 12 }}>
-                      Skills added
-                    </div>
-                    <div style={{ fontWeight: 850, fontSize: 26 }}>{skillsAdded}</div>
-                  </div>
-                </Col>
-                <Col sm={6}>
-                  <div
-                    style={{
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      background: "rgba(18,17,26,0.35)",
-                      borderRadius: 14,
-                      padding: 12,
-                    }}
-                  >
-                    <div className="text-muted" style={{ fontSize: 12 }}>
-                      Skills with evidence
-                    </div>
-                    <div style={{ fontWeight: 850, fontSize: 26 }}>{skillsWithEvidence}</div>
-                  </div>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-
-          <Card>
-            <Card.Body>
-              <div className="d-flex align-items-center justify-content-between">
-                <div style={{ fontWeight: 750 }}>Recent chats</div>
-                <Button as={Link} to="/chat" variant="outline-light" style={{ borderRadius: 12 }}>
-                  Open chat
-                </Button>
-              </div>
-
-              <div className="mt-3" style={{ display: "grid", gap: 10 }}>
-                {loadingChats ? (
-                  <div className="text-muted" style={{ fontSize: 13 }}>
-                    <Spinner size="sm" className="me-2" />
-                    Loading...
-                  </div>
-                ) : recentChats.length === 0 ? (
-                  <div className="text-muted" style={{ fontSize: 13 }}>
-                    No chats yet.
-                  </div>
-                ) : (
-                  recentChats.map((c) => (
-                    <div
-                      key={c.id}
-                      style={{
-                        border: "1px solid rgba(255,255,255,0.06)",
-                        background: "rgba(18,17,26,0.35)",
-                        borderRadius: 14,
-                        padding: 12,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 12,
-                      }}
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 700, fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {c.title}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "text.secondary" }}>{c.when}</Typography>
+                    </Box>
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      size="small"
+                      component={Link}
+                      to="/chat"
+                      sx={{ borderRadius: "10px", whiteSpace: "nowrap", flexShrink: 0 }}
                     >
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {c.title}
-                        </div>
-                        <div className="text-muted" style={{ fontSize: 12 }}>
-                          {c.when}
-                        </div>
-                      </div>
-
-                      <Button
-                        as={Link}
-                        to="/chat"
-                        variant="outline-light"
-                        style={{ borderRadius: 12, whiteSpace: "nowrap" }}
-                      >
-                        View
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col lg={5}>
-          <Card className="mb-3">
-            <Card.Body>
-              <div style={{ fontWeight: 750 }}>Next steps</div>
-              <div className="text-muted" style={{ fontSize: 13, marginTop: 6 }}>
-                Do these to improve recommendation quality.
-              </div>
-
-              <div className="mt-3" style={{ display: "grid", gap: 10 }}>
-                {nextSteps.map((s) => (
-                  <Button
-                    key={s.label}
-                    as={Link}
-                    to={s.to}
-                    variant="outline-light"
-                    style={{ borderRadius: 14, textAlign: "left", padding: "12px 12px" }}
-                  >
-                    {s.label}
-                  </Button>
+                      View
+                    </Button>
+                  </Box>
                 ))}
-              </div>
-            </Card.Body>
-          </Card>
+              </Box>
+            )}
+          </Paper>
+        </Box>
 
-          <Card>
-            <Card.Body>
-              <div className="d-flex align-items-center justify-content-between">
-                <div style={{ fontWeight: 750 }}>Recommendations</div>
-                <Badge bg="secondary" style={{ background: "rgba(255,255,255,0.08)" }}>
-                  Insights
-                </Badge>
-              </div>
+        <Box sx={{ display: "grid", gap: 2.5, alignContent: "start" }}>
+          <Paper sx={{ p: 3, "&:hover": { transform: "none" } }}>
+            <Typography sx={{ fontWeight: 750, mb: 0.5 }}>Next steps</Typography>
+            <Typography variant="body2" sx={{ color: "text.secondary", mb: 2.5 }}>
+              Do these to improve recommendation quality.
+            </Typography>
+            <Box sx={{ display: "grid", gap: 1.5 }}>
+              {nextSteps.map((s) => <StepButton key={s.label} label={s.label} to={s.to} />)}
+            </Box>
+          </Paper>
 
-              <div className="text-muted" style={{ fontSize: 13, marginTop: 6 }}>
-                Run a fresh recommendation to see your top matched roles.
-              </div>
-
-              <div className="mt-3 d-flex gap-2">
-                <Button as={Link} to="/recommendations" className="btn-primary flex-grow-1">
-                  Generate
-                </Button>
-                <Button as={Link} to="/recommendations/history" variant="outline-light" style={{ borderRadius: 12 }}>
-                  History
-                </Button>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </div>
+          <Paper sx={{ p: 3, "&:hover": { transform: "none" } }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <AutoAwesome sx={{ fontSize: 18, color: "#f59e0b" }} />
+                <Typography sx={{ fontWeight: 750 }}>Recommendations</Typography>
+              </Box>
+              <Chip
+                label="Insights"
+                size="small"
+                sx={{ bgcolor: "rgba(245,158,11,0.10)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.20)" }}
+              />
+            </Box>
+            <Typography variant="body2" sx={{ color: "text.secondary", mb: 2.5 }}>
+              Run a fresh recommendation to see your top matched roles.
+            </Typography>
+            <Divider sx={{ mb: 2.5 }} />
+            <Box sx={{ display: "flex", gap: 1.5 }}>
+              <Button variant="contained" component={Link} to="/recommendations" sx={{ flexGrow: 1 }}>
+                Generate
+              </Button>
+              <Button
+                variant="outlined"
+                color="secondary"
+                component={Link}
+                to="/recommendations/history"
+                sx={{ borderRadius: "12px" }}
+              >
+                History
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      </Box>
+    </Box>
   );
 }
