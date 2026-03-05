@@ -2,7 +2,7 @@ const router = require("express").Router();
 const { pool } = require("../db");
 const { requireAuth } = require("../middleware/auth_middleware");
 const { generateCoachReply } = require("../utils/openai");
-
+const { buildFallbackReply } = require("../utils/openai_utils");
 const DEFAULT_TITLE = "New Chat";
 
 function clamp(n, min, max) {
@@ -188,7 +188,7 @@ router.get("/sessions/:sessionId/messages", requireAuth, async (req, res, next) 
 router.post("/sessions/:sessionId/messages", requireAuth, async (req, res, next) => {
   const userId = req.user.id;
   const sessionId = Number(req.params.sessionId);
-  
+
   const content = String(req.body?.content || "").trim();
 
   if (!Number.isFinite(sessionId))
@@ -282,8 +282,7 @@ router.post("/sessions/:sessionId/messages", requireAuth, async (req, res, next)
       assistantText = "";
     }
 
-    const finalAssistantText =
-      (assistantText || "").trim() || "I could not generate a response. Try again.";
+    const finalAssistantText = buildFallbackReply(assistantText);
     await client.query("BEGIN");
 
     const assistantMsgRes = await client.query(

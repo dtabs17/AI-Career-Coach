@@ -46,28 +46,8 @@ export default function RecommendationHistory() {
   }
 
   useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        setErr("");
-        setLoadingRuns(true);
-        const data = await api("/api/recommendations/runs");
-        if (cancelled) return;
-        setRuns(Array.isArray(data) ? data : []);
-      } catch (e) {
-        if (cancelled) return;
-        if (e.status === 401) navigate("/login");
-        else setErr(e.message);
-      } finally {
-        if (!cancelled) setLoadingRuns(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [navigate]);
+    loadRuns();
+  }, []);
 
   return (
     <div className="page-animate">

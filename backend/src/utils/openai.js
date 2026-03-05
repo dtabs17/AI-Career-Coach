@@ -1,3 +1,6 @@
+const { parseEvaluationResponse } = require("./openai_utils");
+
+
 let clientPromise = null;
 
 async function getClient() {
@@ -152,23 +155,7 @@ Respond in this exact JSON format:
   });
 
   const responseText = completion?.choices?.[0]?.message?.content || "{}";
-  
-  try {
-    const parsed = JSON.parse(responseText);
-    const rating = Number(parsed.rating) || 3.0;
-    const feedback = String(parsed.feedback || "Good effort. Keep practicing your interview skills.");
-    const clampedRating = Math.max(1.0, Math.min(5.0, rating));
-    
-    return {
-      rating: clampedRating,
-      feedback: feedback.slice(0, 1000),
-    };
-  } catch (err) {
-    return {
-      rating: 3.0,
-      feedback: "Good effort. Consider providing more specific examples and details in your answer.",
-    };
-  }
+  return parseEvaluationResponse(responseText);
 }
 
 module.exports = { generateCoachReply, generateInterviewQuestion, evaluateAnswer };

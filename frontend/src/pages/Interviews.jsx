@@ -44,6 +44,7 @@ export default function Interviews() {
 
   const [activeSession, setActiveSession] = useState(null);
   const [currentTurn, setCurrentTurn] = useState(null);
+  const [pendingNextTurn, setPendingNextTurn] = useState(null);
   const [answer, setAnswer] = useState("");
   const [allTurns, setAllTurns] = useState([]);
   const [reviewSession, setReviewSession] = useState(null);
@@ -133,7 +134,8 @@ export default function Interviews() {
       );
 
       if (result.next_turn) {
-        setCurrentTurn(result.next_turn);
+        setCurrentTurn(updatedTurn);
+        setPendingNextTurn(result.next_turn);
         setAllTurns([...updatedTurns, result.next_turn]);
       } else {
         setAllTurns(updatedTurns);
@@ -357,7 +359,12 @@ export default function Interviews() {
               <Button
                 variant="primary"
                 onClick={() => {
-                  window.location.reload();
+                  setCurrentTurn(pendingNextTurn);
+                  setActiveSession((prev) => ({
+                    ...prev,
+                    current_question_number: pendingNextTurn.turn_number,
+                  }));
+                  setPendingNextTurn(null);
                 }}
               >
                 Next Question

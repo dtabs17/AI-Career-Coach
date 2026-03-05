@@ -99,6 +99,29 @@ function presetForSkill(skillName) {
       ],
     },
     {
+      match: /(environment|env|dotenv|config)/i,
+      learn: [
+        "Learn config layering: defaults, env vars, and per-environment overrides",
+        "Review secrets handling: never commit secrets, use .env.example",
+        "Understand runtime config validation (fail fast on missing vars)",
+      ],
+      build: [
+        "Add a config module that reads env vars and validates required keys",
+        "Add .env.example and update README setup instructions",
+        "Add safe fallbacks for dev while enforcing required vars in prod",
+      ],
+      quality: [
+        "Add a startup check that prints a friendly error for missing config",
+        "Add different configs for dev vs prod (without changing code)",
+        "Add a small health endpoint showing config-loaded status (no secrets)",
+      ],
+      evidence: [
+        ".env.example + config validation code + README setup section",
+        "Screenshot of app failing fast with missing vars, then passing after fix",
+        "Commit diff showing secrets removed and config centralized",
+      ],
+    },
+    {
       match: /(postgres|sql|database|queries|joins)/i,
       learn: [
         "Review indexing basics and query planning at a high level",
@@ -194,15 +217,15 @@ function tasksFor(skillName, status, req, have, roleTitle, weekNo) {
     `Add input validation and error handling relevant to ${s}`,
   ];
 
-  const learnPool  = preset?.learn?.length   ? preset.learn   : genericLearn;
-  const buildPool  = preset?.build?.length   ? preset.build   : genericBuild;
+  const learnPool = preset?.learn?.length ? preset.learn : genericLearn;
+  const buildPool = preset?.build?.length ? preset.build : genericBuild;
   const qualityPool = preset?.quality?.length ? preset.quality : genericQuality;
 
   const seedBase = `${roleTitle || ""}|${s}|${status}|w${weekNo}`;
 
   if (status === "missing") {
-    const learn   = pickMany(learnPool,   1, seedBase + "|learn")[0];
-    const build   = pickMany(buildPool,   1, seedBase + "|build")[0];
+    const learn = pickMany(learnPool, 1, seedBase + "|learn")[0];
+    const build = pickMany(buildPool, 1, seedBase + "|build")[0];
     const quality = pickMany(qualityPool, 1, seedBase + "|quality")[0];
     return [
       learn,
@@ -222,7 +245,7 @@ function tasksFor(skillName, status, req, have, roleTitle, weekNo) {
     seedBase + "|improve"
   )[0];
 
-  const build   = pickMany(buildPool,   1, seedBase + "|build")[0];
+  const build = pickMany(buildPool, 1, seedBase + "|build")[0];
   const quality = pickMany(qualityPool, 1, seedBase + "|quality")[0];
   return [improve, build, quality];
 }
@@ -238,16 +261,16 @@ function evidenceSuggestion(skillName, roleTitle, weekNo) {
     `Test output screenshot proving ${s} is covered`,
   ];
 
-  const pool  = preset?.evidence?.length ? preset.evidence : genericEvidence;
+  const pool = preset?.evidence?.length ? preset.evidence : genericEvidence;
   const picks = pickMany(pool, 2, `${roleTitle || ""}|${s}|w${weekNo}|evidence`);
   return `Evidence: ${picks.join(" + ")}`;
 }
 
 function priorityScore(r) {
-  const weight     = safeNum(r.importance,      1);
-  const req        = safeNum(r.required_level,  1);
+  const weight = safeNum(r.importance, 1);
+  const req = safeNum(r.required_level, 1);
   const missingBoost = r.status === "missing" ? 100 : 0;
-  const partialBoost = r.status === "partial" ? 50  : 0;
+  const partialBoost = r.status === "partial" ? 50 : 0;
   return missingBoost + partialBoost + weight * 10 + req;
 }
 
@@ -265,15 +288,15 @@ function buildPlan(gapItems, weeks, roleTitle) {
     const weekNo = i + 1;
     return {
       week_no: weekNo,
-      title:   `Week ${weekNo}`,
+      title: `Week ${weekNo}`,
       items: arr.map((r) => ({
-        skill_id:        r.skill_id,
-        name:            r.name,
-        category:        r.category,
-        status:          r.status,
-        required_level:  r.required_level,
-        user_level:      r.user_level,
-        importance:      r.importance,
+        skill_id: r.skill_id,
+        name: r.name,
+        category: r.category,
+        status: r.status,
+        required_level: r.required_level,
+        user_level: r.user_level,
+        importance: r.importance,
         estimated_hours: r.status === "missing" ? 3 : 2,
         suggested_tasks: tasksFor(
           r.name,

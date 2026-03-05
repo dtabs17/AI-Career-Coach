@@ -15,9 +15,53 @@ function fmt(ts) {
 export default function Home() {
   const { isAuthed, firstName } = useAuth();
 
-  const [profileCompletion] = useState(65);
-  const [skillsAdded] = useState(12);
-  const [skillsWithEvidence] = useState(6);
+  const [profileCompletion, setProfileCompletion] = useState(0);
+  const [skillsAdded, setSkillsAdded] = useState(0);
+  const [skillsWithEvidence, setSkillsWithEvidence] = useState(0);
+
+  useEffect(() => {
+    if (!isAuthed) return;
+
+    let mounted = true;
+
+    (async () => {
+      try {
+        const [profile, userSkills] = await Promise.all([
+          api("/api/profile"),
+          api("/api/user-skills"),
+        ]);
+
+        if (!mounted) return;
+
+        const skills = Array.isArray(userSkills) ? userSkills : [];
+        setSkillsAdded(skills.length);
+        setSkillsWithEvidence(skills.filter((s) => s.evidence).length);
+
+        if (profile) {
+          const checks = [
+            Boolean(profile.full_name),
+            Boolean(profile.year_of_study),
+            Boolean(profile.course),
+            Boolean(profile.interests),
+            Boolean(profile.academic_focus),
+            Array.isArray(profile.preferred_technologies) && profile.preferred_technologies.length > 0,
+            Array.isArray(profile.preferred_roles) && profile.preferred_roles.length > 0,
+            skills.length > 0,
+          ];
+          const filled = checks.filter(Boolean).length;
+          setProfileCompletion(Math.round((filled / checks.length) * 100));
+        } else {
+          setProfileCompletion(skills.length > 0 ? 12 : 0);
+        }
+      } catch {
+        //
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthed]);
 
   const nextSteps = useMemo(
     () => [
@@ -61,138 +105,138 @@ export default function Home() {
     };
   }, [isAuthed]);
 
-if (!isAuthed) {
-  return (
-    <div className="page-animate public-home">
-      <Card className="public-home-hero">
-        <Card.Body>
-          <div>
-            <h1 className="page-title">Welcome</h1>
-            <p className="page-subtitle">
-              Browse the skills library without an account. Create an account to save skills, build your profile,
-              generate role recommendations, and use coach chat.
-            </p>
-          </div>
+  if (!isAuthed) {
+    return (
+      <div className="page-animate public-home">
+        <Card className="public-home-hero">
+          <Card.Body>
+            <div>
+              <h1 className="page-title">Welcome</h1>
+              <p className="page-subtitle">
+                Browse the skills library without an account. Create an account to save skills, build your profile,
+                generate role recommendations, and use coach chat.
+              </p>
+            </div>
 
-          <Row className="g-3 mt-2">
-            <Col md={4}>
-              <Card className="h-100 public-home-action">
-                <Card.Body className="d-flex flex-column">
-                  <Card.Title className="mb-2">Skills Library</Card.Title>
-                  <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
-                    Browse skills and see what you can add later.
+            <Row className="g-3 mt-2">
+              <Col md={4}>
+                <Card className="h-100 public-home-action">
+                  <Card.Body className="d-flex flex-column">
+                    <Card.Title className="mb-2">Skills Library</Card.Title>
+                    <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
+                      Browse skills and see what you can add later.
+                    </div>
+                    <Button as={Link} to="/skills" className="btn-primary w-100 mt-auto">
+                      View skills
+                    </Button>
+                  </Card.Body>
+                </Card>
+              </Col>
+
+              <Col md={4}>
+                <Card className="h-100 public-home-action">
+                  <Card.Body className="d-flex flex-column">
+                    <Card.Title className="mb-2">Login</Card.Title>
+                    <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
+                      Access your dashboard, skills, recommendations, and chat.
+                    </div>
+                    <Button as={Link} to="/login" className="btn-primary w-100 mt-auto">
+                      Login
+                    </Button>
+                  </Card.Body>
+                </Card>
+              </Col>
+
+              <Col md={4}>
+                <Card className="h-100 public-home-action">
+                  <Card.Body className="d-flex flex-column">
+                    <Card.Title className="mb-2">Register</Card.Title>
+                    <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
+                      Create an account to unlock profile, recommendations, and coach chat.
+                    </div>
+                    <Button as={Link} to="/register" className="btn-primary w-100 mt-auto">
+                      Create account
+                    </Button>
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
+
+        <Row className="g-3 mt-3">
+          <Col lg={7}>
+            <Card className="public-home-panel">
+              <Card.Body>
+                <div className="d-flex align-items-center justify-content-between">
+                  <div style={{ fontWeight: 750 }}>What you can do now</div>
+                  <Badge className="pill-badge pill-badge-open">Open</Badge>
+                </div>
+
+                <div className="mt-3 public-home-list">
+                  <div className="public-home-list-item">
+                    <div className="public-home-bullet" />
+                    <div>
+                      <div className="public-home-list-title">Browse all skills</div>
+                      <div className="public-home-list-sub">Explore the library and categories.</div>
+                    </div>
                   </div>
-                  <Button as={Link} to="/skills" className="btn-primary w-100 mt-auto">
-                    View skills
+
+                  <div className="public-home-list-item">
+                    <div className="public-home-bullet" />
+                    <div>
+                      <div className="public-home-list-title">See how the system works</div>
+                      <div className="public-home-list-sub">Create an account when you’re ready to save progress.</div>
+                    </div>
+                  </div>
+
+                  <div className="public-home-list-item">
+                    <div className="public-home-bullet" />
+                    <div>
+                      <div className="public-home-list-title">Login or register anytime</div>
+                      <div className="public-home-list-sub">Your dashboard is available right after signup.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 d-flex gap-2 flex-wrap">
+                  <Button as={Link} to="/skills" variant="outline-light" className="btn-outline-pill">
+                    Browse skills
                   </Button>
-                </Card.Body>
-              </Card>
-            </Col>
-
-            <Col md={4}>
-              <Card className="h-100 public-home-action">
-                <Card.Body className="d-flex flex-column">
-                  <Card.Title className="mb-2">Login</Card.Title>
-                  <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
-                    Access your dashboard, skills, recommendations, and chat.
-                  </div>
-                  <Button as={Link} to="/login" className="btn-primary w-100 mt-auto">
-                    Login
-                  </Button>
-                </Card.Body>
-              </Card>
-            </Col>
-
-            <Col md={4}>
-              <Card className="h-100 public-home-action">
-                <Card.Body className="d-flex flex-column">
-                  <Card.Title className="mb-2">Register</Card.Title>
-                  <div className="text-muted mb-3 flex-grow-1" style={{ fontSize: 13 }}>
-                    Create an account to unlock profile, recommendations, and coach chat.
-                  </div>
-                  <Button as={Link} to="/register" className="btn-primary w-100 mt-auto">
+                  <Button as={Link} to="/register" variant="outline-light" className="btn-outline-pill">
                     Create account
                   </Button>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
 
-      <Row className="g-3 mt-3">
-        <Col lg={7}>
-          <Card className="public-home-panel">
-            <Card.Body>
-              <div className="d-flex align-items-center justify-content-between">
-                <div style={{ fontWeight: 750 }}>What you can do now</div>
-                <Badge className="pill-badge pill-badge-open">Open</Badge>
-              </div>
-
-              <div className="mt-3 public-home-list">
-                <div className="public-home-list-item">
-                  <div className="public-home-bullet" />
-                  <div>
-                    <div className="public-home-list-title">Browse all skills</div>
-                    <div className="public-home-list-sub">Explore the library and categories.</div>
-                  </div>
+          <Col lg={5}>
+            <Card className="public-home-panel">
+              <Card.Body>
+                <div style={{ fontWeight: 750 }}>Next steps</div>
+                <div className="text-muted" style={{ fontSize: 13, marginTop: 6 }}>
+                  Create an account to unlock recommendations and coach chat.
                 </div>
 
-                <div className="public-home-list-item">
-                  <div className="public-home-bullet" />
-                  <div>
-                    <div className="public-home-list-title">See how the system works</div>
-                    <div className="public-home-list-sub">Create an account when you’re ready to save progress.</div>
-                  </div>
+                <div className="mt-3" style={{ display: "grid", gap: 10 }}>
+                  <Button as={Link} to="/register" variant="outline-light" className="public-home-step">
+                    Create your account
+                  </Button>
+                  <Button as={Link} to="/login" variant="outline-light" className="public-home-step">
+                    Login to your dashboard
+                  </Button>
+                  <Button as={Link} to="/skills" variant="outline-light" className="public-home-step">
+                    Browse skills library
+                  </Button>
                 </div>
-
-                <div className="public-home-list-item">
-                  <div className="public-home-bullet" />
-                  <div>
-                    <div className="public-home-list-title">Login or register anytime</div>
-                    <div className="public-home-list-sub">Your dashboard is available right after signup.</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 d-flex gap-2 flex-wrap">
-                <Button as={Link} to="/skills" variant="outline-light" className="btn-outline-pill">
-                  Browse skills
-                </Button>
-                <Button as={Link} to="/register" variant="outline-light" className="btn-outline-pill">
-                  Create account
-                </Button>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col lg={5}>
-          <Card className="public-home-panel">
-            <Card.Body>
-              <div style={{ fontWeight: 750 }}>Next steps</div>
-              <div className="text-muted" style={{ fontSize: 13, marginTop: 6 }}>
-                Create an account to unlock recommendations and coach chat.
-              </div>
-
-              <div className="mt-3" style={{ display: "grid", gap: 10 }}>
-                <Button as={Link} to="/register" variant="outline-light" className="public-home-step">
-                  Create your account
-                </Button>
-                <Button as={Link} to="/login" variant="outline-light" className="public-home-step">
-                  Login to your dashboard
-                </Button>
-                <Button as={Link} to="/skills" variant="outline-light" className="public-home-step">
-                  Browse skills library
-                </Button>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </div>
-  );
-}
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      </div>
+    );
+  }
 
   return (
     <div className="page-animate">

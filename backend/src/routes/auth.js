@@ -4,17 +4,28 @@ const jwt = require("jsonwebtoken");
 const { pool } = require("../db");
 const { requireAuth } = require("../middleware/auth_middleware");
 
+function parseExpiryMs(s) {
+  if (!s) return 7 * 24 * 60 * 60 * 1000;
+  const match = String(s).match(/^(\d+)(ms|s|m|h|d|w)?$/);
+  if (!match) return 7 * 24 * 60 * 60 * 1000;
+  const n = Number(match[1]);
+  const unit = match[2] || "s";
+  const mul = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000, w: 604800000 };
+  return n * (mul[unit] || 1000);
+}
+
 function setAuthCookie(res, userId) {
+  const expiresIn = process.env.JWT_EXPIRES_IN || "7d";
   const token = jwt.sign({}, process.env.JWT_SECRET, {
     subject: String(userId),
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+    expiresIn,
   });
 
   res.cookie(process.env.COOKIE_NAME || "access_token", token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: parseExpiryMs(expiresIn),
   });
 }
 

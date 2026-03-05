@@ -10,6 +10,8 @@ function getTopbarTitle(pathname) {
     if (pathname === "/recommendations/history") return "Recommendation history";
     if (pathname === "/chat") return "Chat";
     if (pathname === "/profile") return "Profile";
+    if (pathname === "/planner") return "Planner";
+    if (pathname === "/interviews") return "Interviews";
     return "AI Career Coach";
 }
 
@@ -30,7 +32,7 @@ export default function AppTopBar() {
         return () => document.removeEventListener("mousedown", onDocClick);
     }, []);
 
-    const displayName = user?.full_name || user?.fullName || "Account";
+    const displayName = user?.full_name || "Account";
     const displayEmail = user?.email || "";
 
     async function handleLogout() {

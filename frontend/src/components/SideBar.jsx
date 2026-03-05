@@ -1,7 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useState } from "react";
-//import {HouseDoorFill} from "react-bootstrap-icons"
 
 function linkClass({ isActive }) {
   return `sb-link${isActive ? " active" : ""}`;
@@ -11,7 +10,7 @@ export default function Sidebar() {
   const { user } = useAuth();
   const { pathname } = useLocation();
 
-  const name = user?.full_name || user?.fullName || user?.name || "Student";
+  const name = user?.full_name || "Student";
   const meta = user?.course || user?.email || "Use top right logout";
 
   const inRecsSection = pathname.startsWith("/recommendations");
