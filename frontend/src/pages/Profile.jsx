@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card, Form, Button, Alert, Row, Col, Badge } from "react-bootstrap";
 import { api } from "../api/client";
+import {
+  Box, Paper, Typography, Button, Alert, Chip, Tooltip,
+  TextField, FormControl, InputLabel, Select, MenuItem,
+  CircularProgress, LinearProgress,
+} from "@mui/material";
+import { Add, Refresh, Save, CheckCircle, RadioButtonUnchecked } from "@mui/icons-material";
+import { useToast } from "../toast/ToastContext";
 
 function uniq(arr) {
   const out = [];
@@ -22,10 +28,58 @@ function asArray(value) {
   return [];
 }
 
+const sectionLabel = {
+  color: "text.secondary",
+  fontWeight: 650,
+  textTransform: "uppercase",
+  letterSpacing: "0.07em",
+  fontSize: "0.67rem",
+  mb: 0.5,
+};
+
+const chipSx = {
+  bgcolor: "rgba(255,255,255,0.06)",
+  color: "rgba(241,240,255,0.82)",
+  border: "1px solid rgba(255,255,255,0.10)",
+  cursor: "pointer",
+  "& .MuiChip-deleteIcon": {
+    color: "rgba(241,240,255,0.35)",
+    "&:hover": { color: "rgba(241,240,255,0.75)" },
+  },
+  "&:hover": {
+    bgcolor: "rgba(245,158,11,0.08)",
+    borderColor: "rgba(245,158,11,0.25)",
+    color: "#f1f0ff",
+  },
+};
+
+// ─── Completion check row ──────────────────────────────────────────────────────
+
+function CompletionItem({ label, done }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      {done
+        ? <CheckCircle sx={{ fontSize: 13, color: "#22c55e", flexShrink: 0 }} />
+        : <RadioButtonUnchecked sx={{ fontSize: 13, color: "rgba(241,240,255,0.20)", flexShrink: 0 }} />
+      }
+      <Typography sx={{
+        fontSize: "0.78rem",
+        color: done ? "rgba(241,240,255,0.55)" : "rgba(241,240,255,0.42)",
+        textDecoration: done ? "line-through" : "none",
+      }}>
+        {label}
+      </Typography>
+    </Box>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function Profile() {
-  const [err, setErr] = useState("");
-  const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);
+const [err, setErr] = useState("");
+const [loading, setLoading] = useState(true);
+const [saving, setSaving] = useState(false);
+const showToast = useToast();
 
   const [fullName, setFullName] = useState("");
   const [yearOfStudy, setYearOfStudy] = useState("");
@@ -33,15 +87,12 @@ export default function Profile() {
   const [interests, setInterests] = useState("");
   const [academicFocus, setAcademicFocus] = useState("");
 
-  // Options
-  const [roleOptions, setRoleOptions] = useState([]); // [{id,title}]
-  const [skillOptions, setSkillOptions] = useState([]); // [{id,name,category}]
+  const [roleOptions, setRoleOptions] = useState([]);
+  const [skillOptions, setSkillOptions] = useState([]);
 
-  // Selected values (stored as arrays in json)
-  const [preferredTech, setPreferredTech] = useState([]); // array of skill names
-  const [preferredRoles, setPreferredRoles] = useState([]); // array of role titles
+  const [preferredTech, setPreferredTech] = useState([]);
+  const [preferredRoles, setPreferredRoles] = useState([]);
 
-  // Picker state
   const [techSearch, setTechSearch] = useState("");
   const [roleSearch, setRoleSearch] = useState("");
   const [techPick, setTechPick] = useState("");
@@ -49,47 +100,52 @@ export default function Profile() {
 
   const filteredTechOptions = useMemo(() => {
     const q = techSearch.trim().toLowerCase();
-    const base = skillOptions.map((s) => s.name);
-    const unique = uniq(base);
-    if (!q) return unique.slice(0, 120);
-    return unique.filter((n) => n.toLowerCase().includes(q)).slice(0, 120);
+    const base = uniq(skillOptions.map((s) => s.name));
+    if (!q) return base.slice(0, 120);
+    return base.filter((n) => n.toLowerCase().includes(q)).slice(0, 120);
   }, [skillOptions, techSearch]);
 
   const filteredRoleOptions = useMemo(() => {
     const q = roleSearch.trim().toLowerCase();
-    const base = roleOptions.map((r) => r.title);
-    const unique = uniq(base);
-    if (!q) return unique.slice(0, 80);
-    return unique.filter((t) => t.toLowerCase().includes(q)).slice(0, 80);
+    const base = uniq(roleOptions.map((r) => r.title));
+    if (!q) return base.slice(0, 80);
+    return base.filter((t) => t.toLowerCase().includes(q)).slice(0, 80);
   }, [roleOptions, roleSearch]);
 
-  async function load() {
-    setErr("");
-    setSaved(false);
-    setLoading(true);
+  const checks = useMemo(() => ({
+    name: Boolean(String(fullName || "").trim()),
+    year: Boolean(String(yearOfStudy || "").trim()),
+    course: Boolean(String(course || "").trim()),
+    focus: Boolean(String(academicFocus || "").trim()),
+    interests: Boolean(String(interests || "").trim()),
+    tech: preferredTech.length > 0,
+    roles: preferredRoles.length > 0,
+  }), [fullName, yearOfStudy, course, academicFocus, interests, preferredTech, preferredRoles]);
 
+  const completionPct = Math.round(
+    (Object.values(checks).filter(Boolean).length / Object.keys(checks).length) * 100
+  );
+
+  async function load() {
+    setErr(""); setLoading(true);
     try {
       const [p, skills, roles] = await Promise.all([
         api("/api/profile"),
         api("/api/skills"),
         api("/api/roles"),
       ]);
-
       setSkillOptions(skills || []);
       setRoleOptions(roles || []);
-
       if (p) {
         setFullName(p.full_name || "");
         setYearOfStudy(p.year_of_study || "");
         setCourse(p.course || "");
         setInterests(p.interests || "");
         setAcademicFocus(p.academic_focus || "");
-
         setPreferredTech(asArray(p.preferred_technologies));
         setPreferredRoles(asArray(p.preferred_roles));
       } else {
-        setPreferredTech([]);
-        setPreferredRoles([]);
+        setPreferredTech([]); setPreferredRoles([]);
       }
     } catch (e) {
       setErr(e.message);
@@ -98,27 +154,22 @@ export default function Profile() {
     }
   }
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   function addTech(name) {
     const v = String(name || "").trim();
     if (!v) return;
     setPreferredTech((prev) => uniq([...(prev || []), v]));
   }
-
   function removeTech(name) {
     const key = String(name || "").toLowerCase();
     setPreferredTech((prev) => (prev || []).filter((x) => String(x).toLowerCase() !== key));
   }
-
   function addRole(title) {
     const v = String(title || "").trim();
     if (!v) return;
     setPreferredRoles((prev) => uniq([...(prev || []), v]));
   }
-
   function removeRole(title) {
     const key = String(title || "").toLowerCase();
     setPreferredRoles((prev) => (prev || []).filter((x) => String(x).toLowerCase() !== key));
@@ -126,9 +177,7 @@ export default function Profile() {
 
   async function save(e) {
     e.preventDefault();
-    setErr("");
-    setSaved(false);
-
+setErr(""); setSaving(true);
     try {
       await api("/api/profile", {
         method: "PUT",
@@ -142,222 +191,316 @@ export default function Profile() {
           preferred_roles: preferredRoles.length ? preferredRoles : null,
         }),
       });
-
-      setSaved(true);
+showToast("Profile saved.");
     } catch (e2) {
       setErr(e2.message);
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <Card className="shadow-sm page-animate">
-      <Card.Body>
-        <div className="d-flex align-items-start justify-content-between mb-2">
-          <div>
-            <h3 className="page-title">Profile</h3>
-            <div className="page-subtitle">Tell the coach what you are aiming for.</div>
-          </div>
-        </div>
+    <Box className="page-animate page-content">
 
-        {err ? <Alert variant="danger">{err}</Alert> : null}
-        {saved ? <Alert variant="success">Saved.</Alert> : null}
+      {/* ── Header with completion bar ─────────────────────────────────────── */}
+      <Box sx={{
+        pb: 3, mb: 3,
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        flexWrap: "wrap",
+        gap: 2,
+      }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="h4" sx={{ mb: 0.5 }}>Profile</Typography>
+          <Typography sx={{ color: "text.secondary", mb: 2 }}>
+            A complete profile gives the coach more context and improves your recommendation accuracy.
+          </Typography>
 
-        <Form onSubmit={save}>
-          <Row className="g-3">
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Full name</Form.Label>
-                <Form.Control
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Any Name..."
+          {/* Completion bar */}
+          <Box sx={{ maxWidth: 420 }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
+              <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", fontWeight: 600 }}>
+                Profile completion
+              </Typography>
+              <Typography sx={{
+                fontSize: "0.75rem",
+                fontWeight: 750,
+                color: completionPct === 100 ? "#22c55e" : "#f59e0b",
+              }}>
+                {completionPct}%
+              </Typography>
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={completionPct}
+              sx={{
+                height: 6,
+                "& .MuiLinearProgress-bar": {
+                  background: completionPct === 100
+                    ? "#22c55e"
+                    : "linear-gradient(90deg, #f59e0b, #fb923c)",
+                },
+              }}
+            />
+          </Box>
+        </Box>
+
+        <Button
+          variant="outlined"
+          color="secondary"
+          size="small"
+          startIcon={loading ? <CircularProgress size={13} /> : <Refresh />}
+          onClick={load}
+          disabled={loading}
+          sx={{ flexShrink: 0, mt: 0.5 }}
+        >
+          Reload
+        </Button>
+      </Box>
+
+{err && <Alert severity="error" sx={{ mb: 2.5 }}>{err}</Alert>}
+
+      <Box component="form" onSubmit={save}>
+
+        {/* ── Basic info — two column ──────────────────────────────────────── */}
+        <Box sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", lg: "1fr 300px" },
+          gap: 2.5,
+          mb: 2.5,
+          alignItems: "start",
+        }}>
+
+          {/* Left: fields */}
+          <Paper sx={{ p: 3 }}>
+            <Typography sx={{ ...sectionLabel }}>Basic info</Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 2 }}>
+              Used to personalise advice and contextualise your skills.
+            </Typography>
+
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "3fr 1fr 2fr" }, gap: 2, mb: 2 }}>
+              <TextField
+                label="Full name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Any Name..."
+                disabled={loading}
+                fullWidth
+              />
+              <TextField
+                label="Year of study"
+                value={yearOfStudy}
+                onChange={(e) => setYearOfStudy(e.target.value)}
+                placeholder="4"
+                disabled={loading}
+                fullWidth
+              />
+              <TextField
+                label="Course"
+                value={course}
+                onChange={(e) => setCourse(e.target.value)}
+                placeholder="Software Development"
+                disabled={loading}
+                fullWidth
+              />
+            </Box>
+
+            <TextField
+              label="Academic focus"
+              value={academicFocus}
+              onChange={(e) => setAcademicFocus(e.target.value)}
+              placeholder="Backend, cloud, AI systems..."
+              disabled={loading}
+              fullWidth
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              label="Interests"
+              value={interests}
+              onChange={(e) => setInterests(e.target.value)}
+              placeholder="What do you enjoy building? What kind of roles interest you?"
+              disabled={loading}
+              fullWidth
+              multiline
+              rows={3}
+            />
+          </Paper>
+
+          {/* Right: completion checklist */}
+          <Paper sx={{ p: 2.5 }}>
+            <Typography sx={{ ...sectionLabel, mb: 1.5 }}>Checklist</Typography>
+            <Box sx={{ display: "grid", gap: 1.25 }}>
+              <CompletionItem label="Full name" done={checks.name} />
+              <CompletionItem label="Year of study" done={checks.year} />
+              <CompletionItem label="Course" done={checks.course} />
+              <CompletionItem label="Academic focus" done={checks.focus} />
+              <CompletionItem label="Interests" done={checks.interests} />
+              <CompletionItem label="Preferred technologies" done={checks.tech} />
+              <CompletionItem label="Preferred roles" done={checks.roles} />
+            </Box>
+            <Box sx={{
+              mt: 2, pt: 2,
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+            }}>
+              <Typography variant="caption" sx={{ color: "text.secondary", lineHeight: 1.6 }}>
+                A fuller profile gives the AI more context when generating recommendations and interview questions.
+              </Typography>
+            </Box>
+          </Paper>
+        </Box>
+
+        {/* ── Preferred technologies + roles ──────────────────────────────── */}
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2.5, mb: 2.5 }}>
+
+          {/* Technologies */}
+          <Paper sx={{ p: 3 }}>
+            <Typography sx={{ ...sectionLabel }}>Preferred technologies</Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 2 }}>
+              Technologies you want to be matched against in recommendations.
+            </Typography>
+
+            <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Select a technology</InputLabel>
+                <Select
+                  value={techPick}
+                  label="Select a technology"
+                  onChange={(e) => setTechPick(e.target.value)}
                   disabled={loading}
-                />
-              </Form.Group>
-            </Col>
+                >
+                  <MenuItem value="">
+                    <em style={{ color: "rgba(241,240,255,0.38)", fontStyle: "normal" }}>Select a technology...</em>
+                  </MenuItem>
+                  {filteredTechOptions.map((name) => (
+                    <MenuItem key={name} value={name}>{name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => { addTech(techPick); setTechPick(""); }}
+                disabled={loading || !techPick}
+                sx={{ px: 2, flexShrink: 0 }}
+                startIcon={<Add />}
+              >
+                Add
+              </Button>
+            </Box>
 
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>Year of study</Form.Label>
-                <Form.Control
-                  value={yearOfStudy}
-                  onChange={(e) => setYearOfStudy(e.target.value)}
-                  placeholder="4"
-                  disabled={loading}
-                />
-              </Form.Group>
-            </Col>
+            <TextField
+              label="Search technologies"
+              value={techSearch}
+              onChange={(e) => setTechSearch(e.target.value)}
+              disabled={loading}
+              fullWidth
+              size="small"
+              sx={{ mb: 2 }}
+            />
 
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>Course</Form.Label>
-                <Form.Control
-                  value={course}
-                  onChange={(e) => setCourse(e.target.value)}
-                  placeholder="Software Development"
-                  disabled={loading}
-                />
-              </Form.Group>
-            </Col>
-
-            <Col md={12}>
-              <Form.Group>
-                <Form.Label>Academic focus</Form.Label>
-                <Form.Control
-                  value={academicFocus}
-                  onChange={(e) => setAcademicFocus(e.target.value)}
-                  placeholder="Backend, cloud, AI systems..."
-                  disabled={loading}
-                />
-              </Form.Group>
-            </Col>
-
-            <Col md={12}>
-              <Form.Group>
-                <Form.Label>Interests</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  value={interests}
-                  onChange={(e) => setInterests(e.target.value)}
-                  placeholder="What do you enjoy building? What kind of roles do you like?"
-                  disabled={loading}
-                />
-              </Form.Group>
-            </Col>
-
-            {/* Preferred technologies picker */}
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Preferred technologies</Form.Label>
-
-                <Form.Control
-                  value={techSearch}
-                  onChange={(e) => setTechSearch(e.target.value)}
-                  placeholder="Search technologies..."
-                  disabled={loading}
-                />
-
-                <div className="d-flex gap-2 mt-2">
-                  <Form.Select
-                    value={techPick}
-                    onChange={(e) => setTechPick(e.target.value)}
-                    disabled={loading}
-                  >
-                    <option value="">Select a technology...</option>
-                    {filteredTechOptions.map((name) => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </Form.Select>
-
-                  <Button
-                    type="button"
-                    variant="outline-light"
-                    onClick={() => {
-                      addTech(techPick);
-                      setTechPick("");
-                    }}
-                    disabled={loading || !techPick}
-                  >
-                    Add
-                  </Button>
-                </div>
-
-                <div className="mt-2 d-flex gap-2 flex-wrap">
-                  {preferredTech.length ? preferredTech.map((t) => (
-                    <Badge
-                      key={t}
-                      bg="info"
-                      style={{ cursor: "pointer" }}
+            {preferredTech.length > 0 ? (
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                {preferredTech.map((t) => (
+                  <Tooltip key={t} title="Click to remove" arrow>
+                    <Chip
+                      label={t}
+                      size="small"
                       onClick={() => removeTech(t)}
-                      title="Click to remove"
-                    >
-                      {t}
-                    </Badge>
-                  )) : (
-                    <div className="text-muted" style={{ fontSize: 12 }}>
-                      No technologies selected.
-                    </div>
-                  )}
-                </div>
+                      onDelete={() => removeTech(t)}
+                      sx={chipSx}
+                    />
+                  </Tooltip>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                No technologies selected yet.
+              </Typography>
+            )}
+          </Paper>
 
-                <div className="text-muted mt-1" style={{ fontSize: 12 }}>
-                  Pick from your skills list. Click a chip to remove.
-                </div>
-              </Form.Group>
-            </Col>
+          {/* Roles */}
+          <Paper sx={{ p: 3 }}>
+            <Typography sx={{ ...sectionLabel }}>Preferred roles</Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 2 }}>
+              Roles you are targeting. The coach prioritises these when scoring recommendations.
+            </Typography>
 
-            {/* Preferred roles picker */}
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Preferred roles</Form.Label>
-
-                <Form.Control
-                  value={roleSearch}
-                  onChange={(e) => setRoleSearch(e.target.value)}
-                  placeholder="Search roles..."
+            <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Select a role</InputLabel>
+                <Select
+                  value={rolePick}
+                  label="Select a role"
+                  onChange={(e) => setRolePick(e.target.value)}
                   disabled={loading}
-                />
+                >
+                  <MenuItem value="">
+                    <em style={{ color: "rgba(241,240,255,0.38)", fontStyle: "normal" }}>Select a role...</em>
+                  </MenuItem>
+                  {filteredRoleOptions.map((title) => (
+                    <MenuItem key={title} value={title}>{title}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => { addRole(rolePick); setRolePick(""); }}
+                disabled={loading || !rolePick}
+                sx={{ px: 2, flexShrink: 0 }}
+                startIcon={<Add />}
+              >
+                Add
+              </Button>
+            </Box>
 
-                <div className="d-flex gap-2 mt-2">
-                  <Form.Select
-                    value={rolePick}
-                    onChange={(e) => setRolePick(e.target.value)}
-                    disabled={loading}
-                  >
-                    <option value="">Select a role...</option>
-                    {filteredRoleOptions.map((title) => (
-                      <option key={title} value={title}>{title}</option>
-                    ))}
-                  </Form.Select>
+            <TextField
+              label="Search roles"
+              value={roleSearch}
+              onChange={(e) => setRoleSearch(e.target.value)}
+              disabled={loading}
+              fullWidth
+              size="small"
+              sx={{ mb: 2 }}
+            />
 
-                  <Button
-                    type="button"
-                    variant="outline-light"
-                    onClick={() => {
-                      addRole(rolePick);
-                      setRolePick("");
-                    }}
-                    disabled={loading || !rolePick}
-                  >
-                    Add
-                  </Button>
-                </div>
-
-                <div className="mt-2 d-flex gap-2 flex-wrap">
-                  {preferredRoles.length ? preferredRoles.map((r) => (
-                    <Badge
-                      key={r}
-                      bg="success"
-                      style={{ cursor: "pointer" }}
+            {preferredRoles.length > 0 ? (
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                {preferredRoles.map((r) => (
+                  <Tooltip key={r} title="Click to remove" arrow>
+                    <Chip
+                      label={r}
+                      size="small"
                       onClick={() => removeRole(r)}
-                      title="Click to remove"
-                    >
-                      {r}
-                    </Badge>
-                  )) : (
-                    <div className="text-muted" style={{ fontSize: 12 }}>
-                      No roles selected.
-                    </div>
-                  )}
-                </div>
+                      onDelete={() => removeRole(r)}
+                      sx={chipSx}
+                    />
+                  </Tooltip>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                No roles selected yet.
+              </Typography>
+            )}
+          </Paper>
+        </Box>
 
-                <div className="text-muted mt-1" style={{ fontSize: 12 }}>
-                  Pick from your role library. Click a chip to remove.
-                </div>
-              </Form.Group>
-            </Col>
-
-            <Col md={12} className="d-flex gap-2">
-              <Button type="submit" className="btn-primary" disabled={loading}>
-                Save profile
-              </Button>
-              <Button variant="outline-light" onClick={load} disabled={loading}>
-                Reload
-              </Button>
-            </Col>
-          </Row>
-        </Form>
-      </Card.Body>
-    </Card>
+        {/* Save */}
+        <Box sx={{ display: "flex", gap: 1.5 }}>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={loading || saving}
+            startIcon={saving ? <CircularProgress size={14} sx={{ color: "rgba(0,0,0,0.50)" }} /> : <Save />}
+          >
+            {saving ? "Saving..." : "Save profile"}
+          </Button>
+        </Box>
+      </Box>
+    </Box>
   );
 }

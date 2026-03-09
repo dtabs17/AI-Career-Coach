@@ -3,28 +3,27 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import {
   Box, Typography, IconButton, Menu, MenuItem,
-  Avatar, Divider, ListItemIcon,
+  Avatar, Divider, ListItemIcon, useMediaQuery,
 } from "@mui/material";
-import { Person, Logout, KeyboardArrowRight } from "@mui/icons-material";
-
-
+import { Person, Logout, KeyboardArrowRight, Menu as MenuIcon } from "@mui/icons-material";
 
 const routeMeta = {
-  "/":                        { label: "Dashboard",              parent: null },
-  "/skills":                  { label: "Skills",                 parent: null },
-  "/my-skills":               { label: "My Skills",              parent: null },
-  "/recommendations":         { label: "Recommendations",        parent: null },
-  "/recommendations/history": { label: "History",                parent: "Recommendations" },
-  "/chat":                    { label: "Chat",                   parent: null },
-  "/profile":                 { label: "Profile",                parent: null },
-  "/planner":                 { label: "Planner",                parent: null },
-  "/interviews":              { label: "Interviews",             parent: null },
+  "/":                        { label: "Dashboard",       parent: null },
+  "/skills":                  { label: "Skills",          parent: null },
+  "/my-skills":               { label: "My Skills",       parent: null },
+  "/recommendations":         { label: "Recommendations", parent: null },
+  "/recommendations/history": { label: "History",         parent: "Recommendations" },
+  "/chat":                    { label: "Chat",            parent: null },
+  "/profile":                 { label: "Profile",         parent: null },
+  "/planner":                 { label: "Planner",         parent: null },
+  "/interviews":              { label: "Interviews",      parent: null },
 };
 
-export default function AppTopBar() {
+export default function AppTopBar({ onMenuClick }) {
   const { user, logout } = useAuth();
   const navigate         = useNavigate();
   const { pathname }     = useLocation();
+  const isMobile         = useMediaQuery("(max-width:900px)");
 
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
@@ -56,28 +55,42 @@ export default function AppTopBar() {
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      px: 3,
+      px: { xs: 2, sm: 3 },
       gap: 2,
     }}>
 
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
+      {isMobile && (
+        <IconButton
+          onClick={onMenuClick}
+          size="small"
+          sx={{
+            color: "rgba(241,240,255,0.65)",
+            flexShrink: 0,
+            "&:hover": { color: "#f1f0ff", bgcolor: "rgba(255,255,255,0.05)" },
+          }}
+        >
+          <MenuIcon sx={{ fontSize: 22 }} />
+        </IconButton>
+      )}
+
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0, flex: 1 }}>
         {meta.parent && (
           <>
             <Typography sx={{
-              fontSize: "0.95rem",
+              fontSize: "0.875rem",
               fontWeight: 500,
-              color: "rgba(241,240,255,0.38)",
+              color: "rgba(241,240,255,0.35)",
               letterSpacing: "-0.01em",
               whiteSpace: "nowrap",
             }}>
               {meta.parent}
             </Typography>
-            <KeyboardArrowRight sx={{ fontSize: 16, color: "rgba(241,240,255,0.22)", flexShrink: 0 }} />
+            <KeyboardArrowRight sx={{ fontSize: 15, color: "rgba(241,240,255,0.20)", flexShrink: 0 }} />
           </>
         )}
         <Typography sx={{
-          fontSize: "0.97rem",
-          fontWeight: 700,
+          fontSize: "0.9rem",
+          fontWeight: 680,
           color: "#f1f0ff",
           letterSpacing: "-0.01em",
           whiteSpace: "nowrap",
@@ -88,7 +101,7 @@ export default function AppTopBar() {
         </Typography>
       </Box>
 
-      <Box sx={{ flexShrink: 0, ml: "auto" }}>
+      <Box sx={{ flexShrink: 0 }}>
         <IconButton
           onClick={openMenu}
           aria-haspopup="true"
@@ -98,25 +111,25 @@ export default function AppTopBar() {
           sx={{
             p: 0,
             border: menuOpen
-              ? "2px solid rgba(245,158,11,0.55)"
+              ? "2px solid rgba(245,158,11,0.60)"
               : "2px solid rgba(255,255,255,0.08)",
             borderRadius: "50%",
             background: "transparent",
-            transition: "border-color 150ms ease",
+            transition: "border-color 120ms ease",
             "&:hover": {
-              border: "2px solid rgba(245,158,11,0.38)",
+              border: "2px solid rgba(245,158,11,0.35)",
               background: "transparent",
             },
           }}
         >
           <Avatar sx={{
-            width: 30,
-            height: 30,
-            fontSize: "0.72rem",
+            width: 28,
+            height: 28,
+            fontSize: "0.68rem",
             fontWeight: 750,
             letterSpacing: "0.03em",
-            background: "linear-gradient(135deg, #f59e0b 0%, #fb7185 100%)",
-            color: "#fff",
+            background: "linear-gradient(135deg, #f59e0b, #fb923c)",
+            color: "#0c0b0f",
           }}>
             {initials}
           </Avatar>
@@ -133,46 +146,44 @@ export default function AppTopBar() {
           paper: {
             sx: {
               mt: 1.2,
-              minWidth: 220,
-              backgroundColor: "rgba(12,11,15,0.97)",
+              minWidth: 210,
+              backgroundColor: "rgba(10,9,16,0.99)",
               border: "1px solid rgba(255,255,255,0.09)",
-              borderRadius: "16px",
+              borderRadius: "10px",
               backdropFilter: "blur(24px)",
-              boxShadow: "0 24px 70px rgba(0,0,0,0.65)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.55)",
               overflow: "hidden",
               "&:hover": {
                 transform: "none !important",
-                boxShadow: "0 24px 70px rgba(0,0,0,0.65) !important",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.55) !important",
               },
               "& .MuiList-root": { py: 0 },
             },
           },
         }}
       >
-
         <Box sx={{
-          px: 2.5,
-          pt: 2,
+          px: 2,
+          pt: 1.75,
           pb: 1.5,
-          background: "linear-gradient(180deg, rgba(245,158,11,0.06) 0%, transparent 100%)",
           borderBottom: "1px solid rgba(255,255,255,0.07)",
         }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
             <Avatar sx={{
-              width: 36,
-              height: 36,
-              fontSize: "0.8rem",
+              width: 32,
+              height: 32,
+              fontSize: "0.75rem",
               fontWeight: 750,
-              background: "linear-gradient(135deg, #f59e0b 0%, #fb7185 100%)",
-              color: "#fff",
+              background: "linear-gradient(135deg,#f59e0b,#fb923c)",
+              color: "#0c0b0f",
               flexShrink: 0,
             }}>
               {initials}
             </Avatar>
             <Box sx={{ minWidth: 0 }}>
               <Typography sx={{
-                fontWeight: 700,
-                fontSize: "0.875rem",
+                fontWeight: 680,
+                fontSize: "0.855rem",
                 color: "#f1f0ff",
                 lineHeight: 1.3,
                 overflow: "hidden",
@@ -183,7 +194,7 @@ export default function AppTopBar() {
               </Typography>
               {displayEmail && (
                 <Typography variant="caption" sx={{
-                  color: "rgba(241,240,255,0.40)",
+                  color: "rgba(241,240,255,0.38)",
                   display: "block",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -200,12 +211,12 @@ export default function AppTopBar() {
           <MenuItem
             onClick={() => { closeMenu(); navigate("/profile"); }}
             sx={{
-              py: 1.2, px: 2,
-              fontSize: "0.875rem",
-              color: "rgba(241,240,255,0.80)",
-              gap: 1.5,
-              borderRadius: "8px",
-              mx: 1,
+              py: 1.1, px: 1.75,
+              fontSize: "0.855rem",
+              color: "rgba(241,240,255,0.75)",
+              gap: 1.25,
+              borderRadius: "6px",
+              mx: 0.75,
               "&:hover": {
                 background: "rgba(255,255,255,0.05)",
                 color: "#f1f0ff",
@@ -213,30 +224,30 @@ export default function AppTopBar() {
             }}
           >
             <ListItemIcon sx={{ minWidth: "unset" }}>
-              <Person sx={{ fontSize: 17, color: "rgba(241,240,255,0.40)" }} />
+              <Person sx={{ fontSize: 16, color: "rgba(241,240,255,0.35)" }} />
             </ListItemIcon>
             View Profile
           </MenuItem>
 
-          <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 0.75, mx: 1 }} />
+          <Divider sx={{ borderColor: "rgba(255,255,255,0.07)", my: 0.5, mx: 0.75 }} />
 
           <MenuItem
             onClick={handleLogout}
             sx={{
-              py: 1.2, px: 2,
-              fontSize: "0.875rem",
-              color: "rgba(252,165,165,0.80)",
-              gap: 1.5,
-              borderRadius: "8px",
-              mx: 1,
+              py: 1.1, px: 1.75,
+              fontSize: "0.855rem",
+              color: "rgba(252,165,165,0.75)",
+              gap: 1.25,
+              borderRadius: "6px",
+              mx: 0.75,
               "&:hover": {
-                background: "rgba(239,68,68,0.08)",
+                background: "rgba(239,68,68,0.07)",
                 color: "#fca5a5",
               },
             }}
           >
             <ListItemIcon sx={{ minWidth: "unset" }}>
-              <Logout sx={{ fontSize: 17, color: "rgba(252,165,165,0.45)" }} />
+              <Logout sx={{ fontSize: 16, color: "rgba(252,165,165,0.40)" }} />
             </ListItemIcon>
             Log out
           </MenuItem>

@@ -27,32 +27,33 @@ async function generateCoachReply({ messages, profile, skills }) {
 
   const profileLine = profile
     ? [
-        `Name: ${profile.full_name || "Unknown"}`,
-        `Year: ${profile.year_of_study || "Unknown"}`,
-        `Course: ${profile.course || "Unknown"}`,
-        `Academic focus: ${profile.academic_focus || "Unknown"}`,
-        `Interests: ${profile.interests || "Unknown"}`,
-        `Preferred roles: ${
-          Array.isArray(profile.preferred_roles) ? profile.preferred_roles.join(", ") : "None"
-        }`,
-        `Preferred technologies: ${
-          Array.isArray(profile.preferred_technologies) ? profile.preferred_technologies.join(", ") : "None"
-        }`,
-      ].join("\n")
+      `Name: ${profile.full_name || "Unknown"}`,
+      `Year: ${profile.year_of_study || "Unknown"}`,
+      `Course: ${profile.course || "Unknown"}`,
+      `Academic focus: ${profile.academic_focus || "Unknown"}`,
+      `Interests: ${profile.interests || "Unknown"}`,
+      `Preferred roles: ${Array.isArray(profile.preferred_roles) ? profile.preferred_roles.join(", ") : "None"
+      }`,
+      `Preferred technologies: ${Array.isArray(profile.preferred_technologies) ? profile.preferred_technologies.join(", ") : "None"
+      }`,
+    ].join("\n")
     : "No profile saved yet.";
 
   const skillLine =
     skills && skills.length
       ? skills
-          .slice(0, 50)
-          .map((s) => `${s.name} (level ${s.proficiency_level})`)
-          .join(", ")
+        .slice(0, 50)
+        .map((s) => `${s.name} (level ${s.proficiency_level})`)
+        .join(", ")
       : "No skills saved yet.";
 
   const instructions = [
     "You are a career coach for IT students.",
     "Be practical, concise, and actionable.",
-    "Prefer step-by-step guidance, checklists, and short examples.",
+    "Focus on career guidance: milestones, goals, priorities, and next steps.",
+    "Do not write code blocks or step-by-step technical tutorials. If the user wants implementation help, point them to the right resource or tool instead.",
+    "When suggesting projects or learning paths, give checklists of milestones and outcomes, not instructions on how to build them.",
+    "Do not make salary guarantees or employment predictions. If asked, acknowledge you cannot predict outcomes and suggest speaking to a careers advisor or industry professional.",
     "Do not invent user achievements. If info is missing, ask a short clarifying question.",
     "",
     "Student context:",

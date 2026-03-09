@@ -12,6 +12,9 @@ import {
   PlayArrow, Pause, Stop, Mic, MicOff, Delete,
   Visibility, CheckCircle, AccessTime, EmojiEvents,
 } from "@mui/icons-material";
+import { useToast } from "../toast/ToastContext";
+import ConfirmDialog from "../components/ConfirmDialog";
+
 
 const pulseAnim = keyframes`
   0%, 100% { opacity: 1; }
@@ -30,17 +33,18 @@ function getRatingLabel(rating) {
   return "Needs Improvement";
 }
 
+
 function getRatingChipSx(rating) {
-  if (rating >= 4.5) return { bgcolor: "rgba(34,197,94,0.13)", color: "#86efac", border: "1px solid rgba(34,197,94,0.22)" };
-  if (rating >= 3.5) return { bgcolor: "rgba(59,130,246,0.13)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.22)" };
-  if (rating >= 2.5) return { bgcolor: "rgba(245,158,11,0.13)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.22)" };
-  return { bgcolor: "rgba(239,68,68,0.13)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.22)" };
+  if (rating >= 4.5) return { bgcolor: "rgba(34,197,94,0.12)", color: "#86efac", border: "1px solid rgba(34,197,94,0.22)" };
+  if (rating >= 2.5) return { bgcolor: "rgba(245,158,11,0.12)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.22)" };
+  return { bgcolor: "rgba(239,68,68,0.12)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.22)" };
 }
 
+
 const modeChipSx = {
-  technical: { bgcolor: "rgba(59,130,246,0.12)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.22)" },
-  behavioral: { bgcolor: "rgba(167,139,250,0.12)", color: "#c4b5fd", border: "1px solid rgba(167,139,250,0.22)" },
-  mixed: { bgcolor: "rgba(245,158,11,0.12)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.22)" },
+  bgcolor: "rgba(255,255,255,0.06)",
+  color: "rgba(241,240,255,0.65)",
+  border: "1px solid rgba(255,255,255,0.10)",
 };
 
 const sectionLabel = {
@@ -54,6 +58,7 @@ const sectionLabel = {
 
 export default function Interviews() {
   const navigate = useNavigate();
+  const showToast = useToast();
 
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
@@ -65,6 +70,7 @@ export default function Interviews() {
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedMode, setSelectedMode] = useState("mixed");
   const [totalQuestions, setTotalQuestions] = useState(5);
+  const [suggestedRole, setSuggestedRole] = useState(null);
 
   const [activeSession, setActiveSession] = useState(null);
   const [currentTurn, setCurrentTurn] = useState(null);
@@ -83,8 +89,27 @@ export default function Interviews() {
   const [ttsSpeaking, setTtsSpeaking] = useState(false);
   const [voices, setVoices] = useState([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, sessionId: null });
 
-  useEffect(() => { loadSessions(); loadRoles(); }, []);
+  useEffect(() => {
+    loadSessions();
+    loadRoles();
+    (async () => {
+      try {
+        const runs = await api("/api/recommendations/runs");
+        if (Array.isArray(runs) && runs.length > 0) {
+          const lastRun = runs[0];
+          const detail = await api(`/api/recommendations/runs/${lastRun.id}`);
+          const items = detail?.items;
+          if (Array.isArray(items) && items.length > 0) {
+            setSuggestedRole({ id: items[0].role_id, title: items[0].title });
+          }
+        }
+      } catch {
+        //
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -182,6 +207,7 @@ export default function Interviews() {
       setAllTurns([result.first_turn]);
       setShowNewForm(false);
       setAnswer("");
+      showToast("Interview started. Good luck!");
     } catch (e) {
       if (e.status === 401) navigate("/login");
       else setErr(e.message);
@@ -215,6 +241,7 @@ export default function Interviews() {
         loadSessions();
       }
       setAnswer("");
+      showToast("Answer submitted.");
     } catch (e) {
       if (e.status === 401) navigate("/login");
       else setErr(e.message);
@@ -233,13 +260,18 @@ export default function Interviews() {
     } finally { setLoading(false); }
   }
 
+  function confirmDelete(sessionId) {
+    setConfirmDialog({ open: true, sessionId });
+  }
+
   async function deleteSession(sessionId) {
-    if (!confirm("Delete this interview session?")) return;
+    setConfirmDialog({ open: false, sessionId: null });
     setErr("");
     try {
       await api(`/api/interviews/sessions/${sessionId}`, { method: "DELETE" });
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       if (reviewSession?.id === sessionId) { setReviewSession(null); setAllTurns([]); }
+      showToast("Session deleted.", "info");
     } catch (e) {
       if (e.status === 401) navigate("/login");
       else setErr(e.message);
@@ -268,16 +300,16 @@ export default function Interviews() {
         <Box className="page-content">
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 4 }}>
             <EmojiEvents sx={{ fontSize: 32, color: "#f59e0b" }} />
-            <Typography variant="h4">Interview Complete!</Typography>
+            <Typography variant="h4">Interview Complete</Typography>
           </Box>
 
           <Paper sx={{ p: 3.5, mb: 3 }}>
-            <Typography sx={{ ...sectionLabel }}>Overall Score</Typography>
+            <Typography sx={{ ...sectionLabel }}>Overall score</Typography>
             <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, mb: 2 }}>
+
               <Typography sx={{
                 fontSize: 52, fontWeight: 800, lineHeight: 1,
-                background: "linear-gradient(135deg, #f59e0b, #fb7185)",
-                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                color: "#f59e0b",
               }}>
                 {avgScore.toFixed(1)}
               </Typography>
@@ -286,9 +318,10 @@ export default function Interviews() {
             </Box>
             <LinearProgress variant="determinate" value={(avgScore / 5) * 100} sx={{ mb: 3 }} />
             <Divider sx={{ mb: 3 }} />
+
             <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
               <Box>
-                <Typography variant="body2" sx={{ color: "#86efac", fontWeight: 700, mb: 1.5 }}>✓ Strengths</Typography>
+                <Typography variant="body2" sx={{ color: "#86efac", fontWeight: 700, mb: 1.5 }}>Strengths</Typography>
                 {strongTurns.length > 0 ? strongTurns.map((t, i) => (
                   <Box key={i} sx={{ display: "flex", gap: 1, mb: 1, alignItems: "flex-start" }}>
                     <CheckCircle sx={{ fontSize: 14, color: "#86efac", mt: 0.4, flexShrink: 0 }} />
@@ -296,24 +329,29 @@ export default function Interviews() {
                       Q{t.turn_number}: {t.ai_feedback?.slice(0, 90)}{t.ai_feedback?.length > 90 && "..."}
                     </Typography>
                   </Box>
-                )) : <Typography variant="body2" sx={{ color: "text.secondary" }}>Keep practicing — you'll improve!</Typography>}
+                )) : (
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>Keep practising — you'll improve.</Typography>
+                )}
               </Box>
               <Box>
-                <Typography variant="body2" sx={{ color: "#fca5a5", fontWeight: 700, mb: 1.5 }}>↑ To Improve</Typography>
+                <Typography variant="body2" sx={{ color: "#fca5a5", fontWeight: 700, mb: 1.5 }}>To improve</Typography>
                 {weakTurns.length > 0 ? weakTurns.map((t, i) => (
                   <Typography key={i} variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
                     Q{t.turn_number}: {t.ai_feedback?.slice(0, 90)}{t.ai_feedback?.length > 90 && "..."}
                   </Typography>
-                )) : <Typography variant="body2" sx={{ color: "text.secondary" }}>All answers were strong!</Typography>}
+                )) : (
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>All answers were strong.</Typography>
+                )}
               </Box>
             </Box>
+
             <Box sx={{ display: "flex", gap: 2, mt: 3.5 }}>
-              <Button variant="contained" onClick={backToList}>Back to Interviews</Button>
-              <Button variant="outlined" color="secondary" onClick={() => setShowNewForm(true)}>Start Another</Button>
+              <Button variant="contained" onClick={backToList}>Back to interviews</Button>
+              <Button variant="outlined" color="secondary" onClick={() => setShowNewForm(true)}>Start another</Button>
             </Box>
           </Paper>
 
-          <Typography sx={{ ...sectionLabel, mt: 1 }}>Full Transcript</Typography>
+          <Typography sx={{ ...sectionLabel, mt: 1 }}>Full transcript</Typography>
           {allTurns.map((turn) => (
             <Paper key={turn.id} sx={{ p: 3, mb: 2 }}>
               <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Question {turn.turn_number}</Typography>
@@ -321,7 +359,7 @@ export default function Interviews() {
               {turn.user_answer && (
                 <>
                   <Divider sx={{ mb: 2 }} />
-                  <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Your Answer</Typography>
+                  <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Your answer</Typography>
                   <Typography variant="body2" sx={{ mt: 0.5, mb: 2 }}>{turn.user_answer}</Typography>
                   <Chip label={`${turn.ai_rating}/5.0 — ${getRatingLabel(turn.ai_rating)}`} sx={{ ...getRatingChipSx(turn.ai_rating), mb: 1.5 }} />
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>{turn.ai_feedback}</Typography>
@@ -342,11 +380,11 @@ export default function Interviews() {
           <Box>
             <Typography variant="h4">Mock Interview</Typography>
             <Box sx={{ display: "flex", gap: 1, mt: 1, flexWrap: "wrap" }}>
-              <Chip label={activeSession.role_title} size="small" sx={{ bgcolor: "rgba(255,255,255,0.06)", color: "text.primary", border: "1px solid rgba(255,255,255,0.10)" }} />
-              <Chip label={activeSession.mode} size="small" sx={modeChipSx[activeSession.mode] || modeChipSx.mixed} />
+              <Chip label={activeSession.role_title} size="small" sx={modeChipSx} />
+              <Chip label={activeSession.mode} size="small" sx={modeChipSx} />
             </Box>
           </Box>
-          <Button variant="outlined" color="secondary" size="small" onClick={backToList}>Exit Interview</Button>
+          <Button variant="outlined" color="secondary" size="small" onClick={backToList}>Exit interview</Button>
         </Box>
 
         {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
@@ -366,7 +404,7 @@ export default function Interviews() {
 
             <Box sx={{
               display: "flex", alignItems: "center", gap: 1, mb: 3, px: 2, py: 1.5,
-              bgcolor: "rgba(255,255,255,0.025)", borderRadius: 3,
+              bgcolor: "rgba(255,255,255,0.025)", borderRadius: "8px",
               border: "1px solid rgba(255,255,255,0.06)", flexWrap: "wrap",
             }}>
               <Typography variant="caption" sx={{ color: "text.secondary", mr: 0.5 }}>Read aloud</Typography>
@@ -417,7 +455,7 @@ export default function Interviews() {
             </Box>
 
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-              <Typography sx={{ ...sectionLabel, mb: 0 }}>Your Answer</Typography>
+              <Typography sx={{ ...sectionLabel, mb: 0 }}>Your answer</Typography>
               {voiceSupported && (
                 <Tooltip title={isListening ? "Stop recording" : "Speak your answer"} arrow>
                   <IconButton size="small" onClick={toggleVoice} disabled={submitting} sx={isListening ? {
@@ -444,38 +482,43 @@ export default function Interviews() {
               disabled={submitting}
             />
 
-            <Button variant="contained" sx={{ mt: 2.5 }} onClick={submitAnswer} disabled={submitting || !answer.trim()}
-              startIcon={submitting ? <CircularProgress size={15} sx={{ color: "rgba(255,255,255,0.65)" }} /> : null}>
-              {submitting ? "Submitting..." : "Submit Answer"}
+            <Button
+              variant="contained"
+              sx={{ mt: 2.5 }}
+              onClick={submitAnswer}
+              disabled={submitting || !answer.trim()}
+              startIcon={submitting ? <CircularProgress size={15} sx={{ color: "rgba(0,0,0,0.50)" }} /> : null}
+            >
+              {submitting ? "Submitting..." : "Submit answer"}
             </Button>
           </Paper>
         ) : (
           <Paper sx={{ p: 3.5, mb: 3 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}>
               <CheckCircle sx={{ color: "#86efac", fontSize: 20 }} />
-              <Typography variant="h6">Answer Submitted</Typography>
+              <Typography variant="h6">Answer submitted</Typography>
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>Rating</Typography>
               <Chip label={`${currentTurn.ai_rating}/5.0 — ${getRatingLabel(currentTurn.ai_rating)}`} sx={getRatingChipSx(currentTurn.ai_rating)} />
             </Box>
-            <Paper sx={{ p: 2, mb: 3, bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", "&:hover": { transform: "none" } }}>
+            <Box sx={{ p: 2, mb: 3, borderRadius: "8px", bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
               <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Feedback</Typography>
               <Typography variant="body2" sx={{ mt: 0.5 }}>{currentTurn.ai_feedback}</Typography>
-            </Paper>
+            </Box>
             <Button variant="contained" onClick={() => {
               setCurrentTurn(pendingNextTurn);
               setActiveSession((prev) => ({ ...prev, current_question_number: pendingNextTurn.turn_number }));
               setPendingNextTurn(null);
             }}>
-              Next Question →
+              Next question
             </Button>
           </Paper>
         )}
 
         {allTurns.filter((t) => t.user_answer && t.id !== currentTurn.id).length > 0 && (
           <Box sx={{ mt: 4 }}>
-            <Typography sx={{ ...sectionLabel }}>Previous Questions</Typography>
+            <Typography sx={{ ...sectionLabel }}>Previous questions</Typography>
             {allTurns.filter((t) => t.user_answer && t.id !== currentTurn.id).map((turn) => (
               <Paper key={turn.id} sx={{ p: 2.5, mb: 2, opacity: 0.72 }}>
                 <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Q{turn.turn_number}</Typography>
@@ -497,25 +540,23 @@ export default function Interviews() {
   if (reviewSession) {
     return (
       <Box className="page-content">
-        <Button variant="outlined" color="secondary" size="small" onClick={backToList} sx={{ mb: 3 }}>← Back to List</Button>
+        <Button variant="outlined" color="secondary" size="small" onClick={backToList} sx={{ mb: 3 }}>
+          Back to list
+        </Button>
         <Box sx={{ mb: 3 }}>
-          <Typography variant="h4" sx={{ mb: 1.5 }}>Interview Review</Typography>
+          <Typography variant="h4" sx={{ mb: 1.5 }}>Interview review</Typography>
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
-            <Chip label={reviewSession.role_title} size="small" sx={{ bgcolor: "rgba(255,255,255,0.06)", color: "text.primary", border: "1px solid rgba(255,255,255,0.10)" }} />
-            <Chip label={reviewSession.mode} size="small" sx={modeChipSx[reviewSession.mode] || modeChipSx.mixed} />
+            <Chip label={reviewSession.role_title} size="small" sx={modeChipSx} />
+            <Chip label={reviewSession.mode} size="small" sx={modeChipSx} />
             <Typography variant="caption" sx={{ color: "text.secondary" }}>{fmt(reviewSession.created_at)}</Typography>
           </Box>
         </Box>
 
         {reviewSession.status === "completed" && (
           <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography sx={{ ...sectionLabel }}>Overall Score</Typography>
+            <Typography sx={{ ...sectionLabel }}>Overall score</Typography>
             <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, mt: 0.5 }}>
-              <Typography sx={{
-                fontSize: 44, fontWeight: 800, lineHeight: 1,
-                background: "linear-gradient(135deg, #f59e0b, #fb7185)",
-                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-              }}>
+              <Typography sx={{ fontSize: 44, fontWeight: 800, lineHeight: 1, color: "#f59e0b" }}>
                 {Number(reviewSession.average_score)?.toFixed(1) || "N/A"}
               </Typography>
               <Typography sx={{ color: "text.secondary", fontWeight: 600 }}>/5.0</Typography>
@@ -524,7 +565,7 @@ export default function Interviews() {
           </Paper>
         )}
 
-        <Typography sx={{ ...sectionLabel }}>Full Transcript</Typography>
+        <Typography sx={{ ...sectionLabel }}>Full transcript</Typography>
         {allTurns.map((turn) => (
           <Paper key={turn.id} sx={{ p: 3, mb: 2 }}>
             <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Question {turn.turn_number}</Typography>
@@ -532,7 +573,7 @@ export default function Interviews() {
             {turn.user_answer ? (
               <>
                 <Divider sx={{ mb: 2 }} />
-                <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Your Answer</Typography>
+                <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Your answer</Typography>
                 <Typography variant="body2" sx={{ mt: 0.5, mb: 2 }}>{turn.user_answer}</Typography>
                 <Chip label={`${turn.ai_rating}/5.0 — ${getRatingLabel(turn.ai_rating)}`} sx={{ ...getRatingChipSx(turn.ai_rating), mb: 1.5 }} />
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>{turn.ai_feedback}</Typography>
@@ -551,20 +592,49 @@ export default function Interviews() {
   if (showNewForm) {
     return (
       <Box className="page-content">
-        <Button variant="outlined" color="secondary" size="small" onClick={() => setShowNewForm(false)} sx={{ mb: 3 }}>← Cancel</Button>
-        <Typography variant="h4" sx={{ mb: 3 }}>Start New Interview</Typography>
+        <Button variant="outlined" color="secondary" size="small" onClick={() => setShowNewForm(false)} sx={{ mb: 3 }}>
+          Cancel
+        </Button>
+        <Typography variant="h4" sx={{ mb: 3 }}>Start new interview</Typography>
         {err && <Alert severity="error" sx={{ mb: 3 }}>{err}</Alert>}
+
         <Paper sx={{ p: 3.5 }}>
+          {suggestedRole && (
+            <Box sx={{ mb: 2.5, display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <Typography sx={{ fontSize: "0.78rem", color: "text.secondary" }}>
+                Your top recommended role:
+              </Typography>
+              <Chip
+                label={suggestedRole.title}
+                size="small"
+                onClick={() => setSelectedRole(suggestedRole.id)}
+                sx={{
+                  cursor: "pointer",
+                  border: selectedRole === suggestedRole.id
+                    ? "1px solid rgba(245,158,11,0.55)"
+                    : "1px solid rgba(245,158,11,0.25)",
+                  bgcolor: selectedRole === suggestedRole.id
+                    ? "rgba(245,158,11,0.12)"
+                    : "rgba(245,158,11,0.05)",
+                  color: "#f59e0b",
+                  fontWeight: 600,
+                  "&:hover": {
+                    bgcolor: "rgba(245,158,11,0.12)",
+                  },
+                }}
+              />
+            </Box>
+          )}
           <FormControl fullWidth sx={{ mb: 3 }}>
-            <InputLabel>Target Role *</InputLabel>
-            <Select value={selectedRole} label="Target Role *" onChange={(e) => setSelectedRole(e.target.value)}>
+            <InputLabel>Target role</InputLabel>
+            <Select value={selectedRole} label="Target role" onChange={(e) => setSelectedRole(e.target.value)}>
               <MenuItem value=""><em style={{ color: "rgba(241,240,255,0.38)", fontStyle: "normal" }}>Select a role</em></MenuItem>
               {roles.map((role) => <MenuItem key={role.id} value={role.id}>{role.title}</MenuItem>)}
             </Select>
           </FormControl>
 
           <Box sx={{ mb: 3 }}>
-            <Typography sx={{ ...sectionLabel }}>Interview Type *</Typography>
+            <Typography sx={{ ...sectionLabel }}>Interview type</Typography>
             <RadioGroup value={selectedMode} onChange={(e) => setSelectedMode(e.target.value)}>
               {[
                 { value: "technical", label: "Technical", sub: "Coding, system design, technical knowledge" },
@@ -575,26 +645,38 @@ export default function Interviews() {
                   p: 1.5, mb: 1, cursor: "pointer",
                   border: selectedMode === value ? "1px solid rgba(245,158,11,0.45)" : "1px solid rgba(255,255,255,0.07)",
                   bgcolor: selectedMode === value ? "rgba(245,158,11,0.05)" : "rgba(255,255,255,0.015)",
-                  "&:hover": { transform: "none", border: selectedMode === value ? "1px solid rgba(245,158,11,0.55)" : "1px solid rgba(255,255,255,0.14)" },
+                  "&:hover": {
+                    border: selectedMode === value ? "1px solid rgba(245,158,11,0.55)" : "1px solid rgba(255,255,255,0.14)",
+                  },
                 }}>
                   <FormControlLabel value={value} control={<Radio size="small" />}
-                    label={<Box><Typography variant="body2" sx={{ fontWeight: 650 }}>{label}</Typography><Typography variant="caption" sx={{ color: "text.secondary" }}>{sub}</Typography></Box>}
-                    sx={{ m: 0, width: "100%" }} />
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 650 }}>{label}</Typography>
+                        <Typography variant="caption" sx={{ color: "text.secondary" }}>{sub}</Typography>
+                      </Box>
+                    }
+                    sx={{ m: 0, width: "100%" }}
+                  />
                 </Paper>
               ))}
             </RadioGroup>
           </Box>
 
           <FormControl fullWidth sx={{ mb: 3.5 }}>
-            <InputLabel>Number of Questions</InputLabel>
-            <Select value={totalQuestions} label="Number of Questions" onChange={(e) => setTotalQuestions(Number(e.target.value))}>
+            <InputLabel>Number of questions</InputLabel>
+            <Select value={totalQuestions} label="Number of questions" onChange={(e) => setTotalQuestions(Number(e.target.value))}>
               {[3, 4, 5, 6, 7, 8, 9, 10].map((n) => <MenuItem key={n} value={n}>{n} questions</MenuItem>)}
             </Select>
           </FormControl>
 
-          <Button variant="contained" onClick={startNewInterview} disabled={submitting || !selectedRole}
-            startIcon={submitting ? <CircularProgress size={15} sx={{ color: "rgba(255,255,255,0.65)" }} /> : null}>
-            {submitting ? "Starting..." : "Start Interview"}
+          <Button
+            variant="contained"
+            onClick={startNewInterview}
+            disabled={submitting || !selectedRole}
+            startIcon={submitting ? <CircularProgress size={15} sx={{ color: "rgba(0,0,0,0.50)" }} /> : null}
+          >
+            {submitting ? "Starting..." : "Start interview"}
           </Button>
         </Paper>
       </Box>
@@ -604,10 +686,25 @@ export default function Interviews() {
 
 
   return (
-    <Box className="page-content">
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
-        <Typography variant="h4">Mock Interviews</Typography>
-        <Button variant="contained" onClick={() => setShowNewForm(true)}>Start New Interview</Button>
+    <Box className="page-animate page-content">
+      <Box sx={{
+        pb: 3, mb: 3,
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 2,
+      }}>
+        <Box>
+          <Typography variant="h4" sx={{ mb: 0.5 }}>Mock interviews</Typography>
+          <Typography sx={{ color: "text.secondary" }}>
+            Practise with AI-generated questions and get instant feedback on every answer.
+          </Typography>
+        </Box>
+        <Button variant="contained" onClick={() => setShowNewForm(true)}>
+          Start new interview
+        </Button>
       </Box>
 
       {err && <Alert severity="error" sx={{ mb: 3 }}>{err}</Alert>}
@@ -616,10 +713,12 @@ export default function Interviews() {
         <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}><CircularProgress /></Box>
       ) : sessions.length === 0 ? (
         <Paper sx={{ p: 6, textAlign: "center" }}>
-          <Typography sx={{ fontSize: 52, mb: 2 }}>🎤</Typography>
+          <Typography sx={{ fontSize: 44, mb: 2 }}>🎤</Typography>
           <Typography variant="h5" sx={{ mb: 1 }}>No interviews yet</Typography>
-          <Typography sx={{ color: "text.secondary", mb: 3 }}>Start your first mock interview to practice for real applications.</Typography>
-          <Button variant="contained" onClick={() => setShowNewForm(true)}>Start Interview</Button>
+          <Typography sx={{ color: "text.secondary", mb: 3 }}>
+            Start your first mock interview to practise for real applications.
+          </Typography>
+          <Button variant="contained" onClick={() => setShowNewForm(true)}>Start interview</Button>
         </Paper>
       ) : (
         <Stack spacing={2}>
@@ -629,19 +728,38 @@ export default function Interviews() {
                 <Box sx={{ flexGrow: 1 }}>
                   <Typography variant="h6" sx={{ mb: 1 }}>{session.role_title}</Typography>
                   <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center", mb: 1 }}>
-                    <Chip label={session.mode} size="small" sx={modeChipSx[session.mode] || modeChipSx.mixed} />
+                    <Chip label={session.mode} size="small" sx={modeChipSx} />
                     {session.status === "completed" ? (
                       <>
-                        <Chip label={`${Number(session.average_score)?.toFixed(1) || "N/A"}/5.0`} size="small" sx={getRatingChipSx(session.average_score)} />
+                        <Chip
+                          label={`${Number(session.average_score)?.toFixed(1) || "N/A"}/5.0`}
+                          size="small"
+                          sx={getRatingChipSx(session.average_score)}
+                        />
                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                          <CheckCircle sx={{ fontSize: 13, color: "#86efac" }} />
-                          <Typography variant="caption" sx={{ color: "#86efac" }}>Completed</Typography>
+                          <CheckCircle sx={{ fontSize: 13, color: "#22c55e" }} />
+                          <Typography variant="caption" sx={{ color: "#22c55e" }}>Completed</Typography>
                         </Box>
                       </>
                     ) : (
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                        <AccessTime sx={{ fontSize: 13, color: "#fcd34d" }} />
-                        <Typography variant="caption" sx={{ color: "#fcd34d" }}>In Progress ({session.current_question_number}/{session.total_questions})</Typography>
+                      <Box>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
+                          <AccessTime sx={{ fontSize: 13, color: "#fcd34d" }} />
+                          <Typography variant="caption" sx={{ color: "#fcd34d" }}>
+                            In progress ({session.current_question_number}/{session.total_questions})
+                          </Typography>
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={((session.current_question_number - 1) / session.total_questions) * 100}
+                          sx={{
+                            width: 120,
+                            height: 3,
+                            borderRadius: 2,
+                            bgcolor: "rgba(255,255,255,0.07)",
+                            "& .MuiLinearProgress-bar": { bgcolor: "#f59e0b" },
+                          }}
+                        />
                       </Box>
                     )}
                   </Box>
@@ -649,10 +767,12 @@ export default function Interviews() {
                 </Box>
                 <Box sx={{ display: "flex", gap: 1, ml: 2, flexShrink: 0 }}>
                   <Tooltip title="View session" arrow>
-                    <IconButton size="small" onClick={() => viewSession(session.id)}><Visibility fontSize="small" /></IconButton>
+                    <IconButton size="small" onClick={() => viewSession(session.id)}>
+                      <Visibility fontSize="small" />
+                    </IconButton>
                   </Tooltip>
                   <Tooltip title="Delete session" arrow>
-                    <IconButton size="small" onClick={() => deleteSession(session.id)} sx={{
+                    <IconButton size="small" onClick={() => confirmDelete(session.id)} sx={{
                       "&:hover": { bgcolor: "rgba(239,68,68,0.12) !important", color: "#fca5a5 !important", borderColor: "rgba(239,68,68,0.25) !important" },
                     }}>
                       <Delete fontSize="small" />
@@ -664,6 +784,14 @@ export default function Interviews() {
           ))}
         </Stack>
       )}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Delete session"
+        message="This interview session and all its answers will be permanently deleted."
+        confirmLabel="Delete"
+        onConfirm={() => deleteSession(confirmDialog.sessionId)}
+        onCancel={() => setConfirmDialog({ open: false, sessionId: null })}
+      />
     </Box>
   );
 }
