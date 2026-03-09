@@ -23,11 +23,11 @@ const sectionLabel = {
 export default function RecommendationHistory() {
   const navigate = useNavigate();
 
-  const [err,         setErr]         = useState("");
+  const [err, setErr] = useState("");
   const [loadingRuns, setLoadingRuns] = useState(true);
-  const [loadingRun,  setLoadingRun]  = useState(false);
+  const [loadingRun, setLoadingRun] = useState(false);
 
-  const [runs,      setRuns]      = useState([]);
+  const [runs, setRuns] = useState([]);
   const [activeRun, setActiveRun] = useState(null);
 
   async function loadRuns() {
@@ -106,18 +106,24 @@ export default function RecommendationHistory() {
       </Box>
 
       {err && <Alert severity="error" sx={{ mb: 2.5 }}>{err}</Alert>}
-      
+
       <Paper sx={{ overflow: "hidden", mb: 2.5 }}>
 
         <Box sx={{
           display: "grid",
-          gridTemplateColumns: "2fr 1.5fr 3fr 48px",
+          gridTemplateColumns: { xs: "1fr 48px", md: "2fr 1.5fr 3fr 48px" },
           px: 3, py: 1.5,
           borderBottom: "1px solid rgba(255,255,255,0.07)",
           bgcolor: "rgba(255,255,255,0.015)",
         }}>
           {["Created", "Algorithm", "Top result", ""].map((h) => (
-            <Typography key={h} sx={{ ...sectionLabel }}>{h}</Typography>
+            <Typography
+              key={h}
+              sx={{
+                ...sectionLabel,
+                display: (h === "Algorithm" || h === "Top result") ? { xs: "none", md: "block" } : "block",
+              }}
+            >{h}</Typography>
           ))}
         </Box>
 
@@ -138,7 +144,7 @@ export default function RecommendationHistory() {
               key={r.id}
               sx={{
                 display: "grid",
-                gridTemplateColumns: "2fr 1.5fr 3fr 48px",
+                gridTemplateColumns: { xs: "1fr 48px", md: "2fr 1.5fr 3fr 48px" },
                 px: 3, py: 1.75,
                 alignItems: "center",
                 borderBottom: i < runs.length - 1
@@ -155,14 +161,14 @@ export default function RecommendationHistory() {
                 {fmt(r.created_at)}
               </Typography>
 
-              <Box>
+              <Box sx={{ display: { xs: "none", md: "block" } }}>
                 <Chip
                   label={r.algo_version}
                   size="small"
                   sx={{
                     bgcolor: "rgba(255,255,255,0.06)",
-                    color:   "rgba(241,240,255,0.60)",
-                    border:  "1px solid rgba(255,255,255,0.10)",
+                    color: "rgba(241,240,255,0.60)",
+                    border: "1px solid rgba(255,255,255,0.10)",
                     fontSize: "0.72rem",
                   }}
                 />
@@ -171,6 +177,7 @@ export default function RecommendationHistory() {
               <Typography
                 variant="body2"
                 sx={{
+                  display: { xs: "none", md: "block" },
                   fontSize: "0.82rem",
                   color: r.top_role_title
                     ? "rgba(241,240,255,0.75)"
@@ -193,8 +200,8 @@ export default function RecommendationHistory() {
                     disabled={loadingRun}
                     sx={{
                       "&:hover": {
-                        bgcolor:     "rgba(245,158,11,0.10) !important",
-                        color:       "#fcd34d !important",
+                        bgcolor: "rgba(245,158,11,0.10) !important",
+                        color: "#fcd34d !important",
                         borderColor: "rgba(245,158,11,0.25) !important",
                       },
                     }}

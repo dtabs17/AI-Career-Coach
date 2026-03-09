@@ -499,15 +499,21 @@ export default function Planner() {
               <Box
                 key={p.id}
                 sx={{
-                  display: "grid", gridTemplateColumns: { xs: "1fr 100px", md: "3fr 1fr 1fr 2fr 100px" },
-                  px: 2.5, py: 1.75, alignItems: "center",
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr auto", md: "3fr 1fr 1fr 2fr 100px" },
+                  px: 2.5, py: 1.75, alignItems: "center", gap: { xs: 1, md: 0 },
                   borderBottom: i < savedPlans.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
                   bgcolor: Number(savedPlanId) === Number(p.id) ? "rgba(245,158,11,0.04)" : "transparent",
                   transition: "background 120ms ease",
                   "&:hover": { bgcolor: "rgba(255,255,255,0.025)" },
                 }}
               >
-                <Typography sx={{ fontWeight: 650, fontSize: "0.875rem" }}>{p.role_title || "Unknown role"}</Typography>
+                <Box>
+                  <Typography sx={{ fontWeight: 650, fontSize: "0.875rem" }}>{p.role_title || "Unknown role"}</Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.75rem", display: { md: "none" }, mt: 0.25 }}>
+                    {p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}
+                  </Typography>
+                </Box>
                 <Box sx={{ display: { xs: "none", md: "block" } }}>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>{p.weeks || "—"}</Typography>
                 </Box>
@@ -516,7 +522,7 @@ export default function Planner() {
                     {Number.isFinite(Number(p.progress_pct)) ? `${p.progress_pct}%` : "—"}
                   </Typography>
                 </Box>
-                <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.78rem" }}>
+                <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.78rem", display: { xs: "none", md: "block" } }}>
                   {p.created_at ? new Date(p.created_at).toLocaleString() : "—"}
                 </Typography>
                 <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>

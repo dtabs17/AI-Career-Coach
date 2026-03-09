@@ -5,7 +5,7 @@ import {
   Alert, CircularProgress, TextField, Tooltip, Box, Typography,
 } from "@mui/material";
 import {
-  Add, Send, Close, Edit, Check, Delete, ChatBubbleOutline, ContentCopy,
+  Add, Send, Close, Edit, Check, Delete, ChatBubbleOutline, ContentCopy, ArrowBack,
 } from "@mui/icons-material";
 
 function fmt(ts) {
@@ -24,7 +24,7 @@ const emptyPrompts = [
 
 
 function renderInline(text) {
-  
+
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**"))
@@ -53,7 +53,7 @@ function MarkdownContent({ content }) {
   while (i < lines.length) {
     const line = lines[i];
 
-    
+
     if (line.startsWith("```")) {
       const block = [];
       i++;
@@ -81,7 +81,7 @@ function MarkdownContent({ content }) {
       continue;
     }
 
-    
+
     const h3 = line.match(/^###\s+(.*)/);
     const h2 = line.match(/^##\s+(.*)/);
     const h1 = line.match(/^#\s+(.*)/);
@@ -110,18 +110,18 @@ function MarkdownContent({ content }) {
       i++; continue;
     }
 
-    
+
     if (/^(-{3,}|\*{3,})$/.test(line.trim())) {
       output.push(<Box key={i} sx={{ borderTop: "1px solid rgba(255,255,255,0.10)", my: 1.5 }} />);
       i++; continue;
     }
 
-    
+
     const indent = line.match(/^(\s*)/)[1].length;
     const indentPl = indent > 0 ? `${Math.min(indent, 4) * 6}px` : 0;
     const trimmed = line.trimStart();
 
-    
+
     const cbUnchecked = trimmed.match(/^[-*]\s+\[\s\]\s+(.*)/);
     const cbChecked = trimmed.match(/^[-*]\s+\[x\]\s+(.*)/i);
     if (cbUnchecked || cbChecked) {
@@ -150,7 +150,7 @@ function MarkdownContent({ content }) {
       i++; continue;
     }
 
-    
+
     const bullet = trimmed.match(/^[-*]\s+(.*)/);
     if (bullet) {
       const isSubBullet = indent > 0;
@@ -172,7 +172,7 @@ function MarkdownContent({ content }) {
       i++; continue;
     }
 
-    
+
     const numbered = trimmed.match(/^(\d+)\.\s+(.*)/);
     if (numbered) {
       output.push(
@@ -188,13 +188,13 @@ function MarkdownContent({ content }) {
       i++; continue;
     }
 
-    
+
     if (line.trim() === "") {
       output.push(<Box key={i} sx={{ height: "0.5em" }} />);
       i++; continue;
     }
 
-    
+
     output.push(
       <Typography key={i} sx={{ fontSize: "0.875rem", lineHeight: 1.6, color: "rgba(241,240,255,0.90)", mb: 0.1 }}>
         {renderInline(line)}
@@ -241,9 +241,9 @@ function MessageBubble({ message }) {
       flexDirection: isUser ? "row-reverse" : "row",
       alignItems: "flex-end",
       gap: 1,
-      maxWidth: "78%",
+      maxWidth: { xs: "92%", sm: "78%" },
       alignSelf: isUser ? "flex-end" : "flex-start",
-      
+
       "& .copy-btn": { opacity: 0, transition: "opacity 120ms ease" },
       "&:hover .copy-btn": { opacity: 1 },
     }}>
@@ -266,7 +266,7 @@ function MessageBubble({ message }) {
           <Typography sx={{
             fontSize: "0.72rem",
             fontWeight: 700,
-            
+
             color: isUser ? "rgba(245,158,11,0.90)" : "rgba(167,139,250,0.85)",
             textTransform: "uppercase",
             letterSpacing: "0.06em",
@@ -327,7 +327,7 @@ function EmptyState({ onPrompt, coachContext }) {
   const contextPills = coachContext ? [
     coachContext.name && { label: coachContext.name },
     coachContext.skillCount > 0 && { label: `${coachContext.skillCount} skill${coachContext.skillCount !== 1 ? "s" : ""} in your profile` },
-    ...( coachContext.preferredRoles.map((r) => ({ label: r })) ),
+    ...(coachContext.preferredRoles.map((r) => ({ label: r }))),
     coachContext.course && { label: coachContext.course },
   ].filter(Boolean) : [];
 
@@ -618,7 +618,7 @@ export default function Chat() {
 
   useEffect(() => {
     loadSessions({ selectFirst: true });
-    
+
   }, []);
 
   const activeSession = sessions.find((s) => Number(s.id) === Number(activeId));
@@ -739,6 +739,22 @@ export default function Chat() {
           backdropFilter: "blur(12px)",
         }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+            <Box
+              onClick={() => navigate("/")}
+              sx={{
+                display: { xs: "grid", md: "none" },
+                width: 32, height: 32, borderRadius: "8px",
+                placeItems: "center", flexShrink: 0,
+                border: "1px solid rgba(255,255,255,0.08)",
+                bgcolor: "rgba(255,255,255,0.03)",
+                color: "rgba(241,240,255,0.65)",
+                cursor: "pointer",
+                transition: "all 120ms ease",
+                "&:hover": { bgcolor: "rgba(255,255,255,0.06)", color: "rgba(241,240,255,0.95)" },
+              }}
+            >
+              <ArrowBack style={{ fontSize: 15 }} />
+            </Box>
             <Tooltip title={showSessions ? "Hide sidebar" : "Show sidebar"} arrow>
               <Box onClick={() => setShowSessions((v) => !v)} sx={{
                 width: 32, height: 32, borderRadius: "8px",

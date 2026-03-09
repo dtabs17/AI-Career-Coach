@@ -196,6 +196,19 @@ body:has(.dash-shell)::before {
   .dash-content {
     padding: 14px 16px;
   }
+
+  .public-sub {
+    display: none;
+  }
+
+  .public-topbar-inner {
+    padding: 0 16px;
+  }
+
+  .public-link {
+    padding: 6px 8px;
+    font-size: 0.80rem;
+  }
 }
 
 .public-shell {
