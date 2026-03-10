@@ -252,8 +252,21 @@ export default function Interviews() {
     setLoading(true); setErr("");
     try {
       const data = await api(`/api/interviews/sessions/${sessionId}`);
-      setReviewSession(data.session);
-      setAllTurns(data.turns || []);
+      const session = data.session;
+      const turns = data.turns || [];
+
+      if (session.status === "in_progress") {
+        const answeredTurns = turns.filter((t) => t.user_answer);
+        const currentTurn = turns.find((t) => t.turn_number === session.current_question_number);
+        setActiveSession({ ...session, role_title: session.role_title });
+        setAllTurns(answeredTurns);
+        setCurrentTurn(currentTurn || null);
+        setPendingNextTurn(null);
+        setAnswer("");
+      } else {
+        setReviewSession(session);
+        setAllTurns(turns);
+      }
     } catch (e) {
       if (e.status === 401) navigate("/login");
       else setErr(e.message);
@@ -384,7 +397,15 @@ export default function Interviews() {
               <Chip label={activeSession.mode} size="small" sx={modeChipSx} />
             </Box>
           </Box>
-          <Button variant="outlined" color="secondary" size="small" onClick={backToList}>Exit interview</Button>
+          <Button
+            variant="outlined"
+            color="secondary"
+            size="small"
+            onClick={backToList}
+            sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+          >
+            Exit interview
+          </Button>
         </Box>
 
         {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
