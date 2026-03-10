@@ -263,7 +263,7 @@ function SidebarContent({ onNavigate }) {
             open={Boolean(anchorEl)}
             anchorEl={anchorEl}
             onClose={closeStats}
-            anchorOrigin={{ vertical: "top", horizontal: "right" }}
+            anchorOrigin={{ vertical: "top", horizontal: "left" }}
             transformOrigin={{ vertical: "bottom", horizontal: "left" }}
             slotProps={{
               paper: {

@@ -187,14 +187,29 @@ body:has(.dash-shell)::before {
 @media (max-width: 900px) {
   .dash-shell {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
-  .dash-sidebar {
-    display: none;
+  body:has(.dash-shell) {
+    height: auto;
+    overflow: auto;
+  }
+
+  .dash-main {
+    height: auto;
+    min-height: 100vh;
   }
 
   .dash-content {
     padding: 14px 16px;
+    overflow: visible;
+    min-height: 0;
+  }
+
+  .dash-sidebar {
+    display: none;
   }
 
   .public-sub {
