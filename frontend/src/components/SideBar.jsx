@@ -10,10 +10,10 @@ import {
 import {
   Home, MenuBook, CheckCircleOutline, AutoAwesome,
   BoltOutlined, HistoryOutlined, CalendarMonth,
-  MicNoneOutlined, ExpandMore, Person,
+  MicNoneOutlined, ExpandMore, Person, BarChart,
 } from "@mui/icons-material";
 
-const NavContext = createContext({ onNavigate: () => {} });
+const NavContext = createContext({ onNavigate: () => { } });
 
 const navItemSx = {
   borderRadius: "7px",
@@ -159,7 +159,7 @@ function SidebarContent({ onNavigate }) {
         overflowY: "auto",
       }}>
 
-         
+
         <Box sx={{ px: 1, mb: 3.5, display: "flex", alignItems: "center", gap: 1.25 }}>
           <AppIcon size={28} />
           <Box>
@@ -175,7 +175,7 @@ function SidebarContent({ onNavigate }) {
           </Box>
         </Box>
 
-         
+
         <SectionLabel>App</SectionLabel>
         <List disablePadding sx={{ mb: 2 }}>
           <NavItem to="/" end icon={<Home sx={{ fontSize: 17 }} />} label="Home" />
@@ -184,7 +184,7 @@ function SidebarContent({ onNavigate }) {
           <NavItem to="/my-skills" icon={<CheckCircleOutline sx={{ fontSize: 17 }} />} label="My Skills" />
         </List>
 
-         
+
         <SectionLabel>Insights</SectionLabel>
         <List disablePadding>
           <ListItemButton
@@ -224,7 +224,7 @@ function SidebarContent({ onNavigate }) {
           <NavItem to="/interviews" icon={<MicNoneOutlined sx={{ fontSize: 17 }} />} label="Interviews" />
         </List>
 
-         
+
         <Box sx={{ mt: "auto", pt: 2 }}>
           <Divider sx={{ borderColor: "rgba(255,255,255,0.06)", mb: 2 }} />
           <Box
@@ -257,6 +257,7 @@ function SidebarContent({ onNavigate }) {
                 </Typography>
               )}
             </Box>
+            <BarChart sx={{ fontSize: 15, color: "rgba(241,240,255,0.22)", flexShrink: 0 }} />
           </Box>
 
           <Popover
@@ -330,10 +331,10 @@ function SidebarContent({ onNavigate }) {
   );
 }
 
-export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
+export default function Sidebar({ mobileOpen = false, onClose = () => { } }) {
   return (
     <>
-       
+
       <Drawer
         open={mobileOpen}
         onClose={onClose}
@@ -350,8 +351,8 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         <SidebarContent onNavigate={onClose} />
       </Drawer>
 
-       
-      <SidebarContent onNavigate={() => {}} />
+
+      <SidebarContent onNavigate={() => { }} />
     </>
   );
 }

@@ -14,7 +14,7 @@ const viewModes = [
   { key: "preferred", label: "Preferred roles", subtitle: "Your preferred roles ranked by how close you are based on current skills." },
 ];
 
-// ─── View mode pill ───────────────────────────────────────────────────────────
+
 
 function ViewPill({ label, active, onClick }) {
   return (
@@ -48,7 +48,6 @@ function ViewPill({ label, active, onClick }) {
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Recommendations() {
   const [err, setErr] = useState("");
@@ -99,7 +98,6 @@ export default function Recommendations() {
   return (
     <Box className="page-animate page-content">
 
-      {/* Page header */}
       <Box sx={{
         pb: 3, mb: 3,
         borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -148,7 +146,6 @@ export default function Recommendations() {
         </Box>
       </Box>
 
-      {/* View mode toggle */}
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1.25 }}>
         {viewModes.map(({ key, label }) => (
           <ViewPill

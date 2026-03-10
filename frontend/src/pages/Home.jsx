@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
 import {
-  Box, Paper, Typography, Button, CircularProgress, Divider,
+  Box, Paper, Typography, Button, CircularProgress, Divider, Dialog,
 } from "@mui/material";
 import {
   AutoAwesome, Chat, ArrowForward, MenuBook,
   CheckCircleOutline, Person, TrendingUp,
   BoltOutlined, CalendarMonth, MicNoneOutlined,
   CheckCircle, RadioButtonUnchecked, OpenInNew,
+  Close,
 } from "@mui/icons-material";
+import AppIcon from "../components/AppIcon";
 
 function fmt(ts) {
   try { return new Date(ts).toLocaleString(); } catch { return ""; }
@@ -23,7 +25,141 @@ function greeting() {
   return "Good evening";
 }
 
+const ONBOARDING_STEPS = [
+  {
+    n: 1,
+    title: "Add your skills",
+    desc: "Go to My Skills and add everything you know. Rate each one from 1 (aware of it) to 5 (expert). This is the core input the whole app runs on.",
+    to: "/my-skills",
+  },
+  {
+    n: 2,
+    title: "Complete your profile",
+    desc: "Set your course, academic focus, and preferred roles. The recommendations engine uses this to apply a preference bonus on top of your skill scores.",
+    to: "/profile",
+  },
+  {
+    n: 3,
+    title: "Run recommendations",
+    desc: "The engine scores every IT role against your skills and preferences and ranks them. You will see a breakdown of matched, partial, and missing skills for each role.",
+    to: "/recommendations",
+  },
+  {
+    n: 4,
+    title: "Use the planner and interviews",
+    desc: "Pick a target role in the Planner to see your skill gaps and generate a weekly study plan. Use Interviews to practise with AI-generated questions and get scored feedback.",
+    to: "/planner",
+  },
+  {
+    n: 5,
+    title: "The chat knows your profile",
+    desc: "Every conversation starts with your skills, preferred roles, and academic focus already loaded. You do not need to explain yourself, just ask.",
+    to: "/chat",
+  },
+];
 
+function OnboardingModal({ open, onClose, onStart }) {
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          bgcolor: "#0e0d16",
+          border: "1px solid rgba(255,255,255,0.09)",
+          borderRadius: "14px",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.70)",
+          p: { xs: 2.5, sm: 3.5 },
+        },
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 2.5 }}>
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
+            <AppIcon size={28} />
+            <Typography sx={{ fontWeight: 750, fontSize: "1.0625rem", color: "#f1f0ff" }}>
+              Welcome to AI Career Coach
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: "0.875rem", color: "rgba(241,240,255,0.50)", lineHeight: 1.55 }}>
+            Here is how to get the most out of the app in four steps.
+          </Typography>
+        </Box>
+        <Box
+          onClick={onClose}
+          role="button"
+          sx={{
+            ml: 2, flexShrink: 0, width: 28, height: 28,
+            display: "grid", placeItems: "center",
+            borderRadius: "7px", cursor: "pointer",
+            color: "rgba(241,240,255,0.30)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            transition: "all 120ms ease",
+            "&:hover": { color: "rgba(241,240,255,0.70)", bgcolor: "rgba(255,255,255,0.05)" },
+          }}
+        >
+          <Close sx={{ fontSize: 15 }} />
+        </Box>
+      </Box>
+
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {ONBOARDING_STEPS.map((step, i) => (
+          <Box
+            key={step.n}
+            sx={{
+              display: "flex",
+              gap: 1.75,
+              py: 1.75,
+              borderBottom: i < ONBOARDING_STEPS.length - 1
+                ? "1px solid rgba(255,255,255,0.05)"
+                : "none",
+            }}
+          >
+            <Box sx={{
+              width: 24, height: 24, borderRadius: "50%", flexShrink: 0, mt: "1px",
+              border: "1px solid rgba(245,158,11,0.35)",
+              bgcolor: "rgba(245,158,11,0.08)",
+              display: "grid", placeItems: "center",
+            }}>
+              <Typography sx={{ fontSize: "0.7rem", fontWeight: 750, color: "#f59e0b", lineHeight: 1 }}>
+                {step.n}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 670, fontSize: "0.875rem", color: "#f1f0ff", mb: 0.35 }}>
+                {step.title}
+              </Typography>
+              <Typography sx={{ fontSize: "0.80rem", color: "rgba(241,240,255,0.45)", lineHeight: 1.55 }}>
+                {step.desc}
+              </Typography>
+            </Box>
+          </Box>
+        ))}
+      </Box>
+
+      <Box sx={{ display: "flex", gap: 1.25, mt: 3, flexWrap: "wrap" }}>
+        <Button
+          variant="contained"
+          onClick={onStart}
+          endIcon={<ArrowForward sx={{ fontSize: "15px !important" }} />}
+          sx={{ flex: 1, minWidth: 160 }}
+        >
+          Start by adding my skills
+        </Button>
+        <Button
+          variant="outlined"
+          color="secondary"
+          onClick={onClose}
+          sx={{ flex: 1, minWidth: 140 }}
+        >
+          I will explore on my own
+        </Button>
+      </Box>
+    </Dialog>
+  );
+}
 
 function Stat({ value, label, amber }) {
   return (
@@ -48,8 +184,6 @@ function Stat({ value, label, amber }) {
     </Box>
   );
 }
-
-
 
 function NextStep({ label, hint, to, done }) {
   return (
@@ -98,9 +232,6 @@ function NextStep({ label, hint, to, done }) {
   );
 }
 
-
-
-
 function ShortcutTile({ icon, label, to }) {
   return (
     <Box
@@ -143,9 +274,6 @@ function ShortcutTile({ icon, label, to }) {
   );
 }
 
-
-
-
 function FeatureCard({ icon, title, sub, to, cta }) {
   return (
     <Box sx={{
@@ -177,10 +305,9 @@ function FeatureCard({ icon, title, sub, to, cta }) {
   );
 }
 
-
-
 export default function Home() {
-  const { isAuthed, firstName } = useAuth();
+  const { isAuthed, firstName, user } = useAuth();
+  const navigate = useNavigate();
 
   const [profileCompletion, setProfileCompletion] = useState(0);
   const [skillsAdded, setSkillsAdded] = useState(0);
@@ -189,6 +316,25 @@ export default function Home() {
   const [recentChats, setRecentChats] = useState([]);
   const [hasPreferredRoles, setHasPreferredRoles] = useState(false);
   const [hasRun, setHasRun] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthed || !user?.id) return;
+    const key = `onboarding_seen_${user.id}`;
+    if (!localStorage.getItem(key)) {
+      setShowOnboarding(true);
+    }
+  }, [isAuthed, user?.id]);
+
+  function dismissOnboarding() {
+    if (user?.id) localStorage.setItem(`onboarding_seen_${user.id}`, "1");
+    setShowOnboarding(false);
+  }
+
+  function startOnboarding() {
+    dismissOnboarding();
+    navigate("/my-skills");
+  }
 
   useEffect(() => {
     if (!isAuthed) return;
@@ -263,8 +409,6 @@ export default function Home() {
   }, [isAuthed]);
 
   const evidencePct = skillsAdded > 0 ? Math.round((skillsWithEvidence / skillsAdded) * 100) : 0;
-
-
 
   if (!isAuthed) {
     return (
@@ -357,10 +501,13 @@ export default function Home() {
     );
   }
 
-
-
   return (
     <Box className="page-animate" sx={{ pb: 3 }}>
+      <OnboardingModal
+        open={showOnboarding}
+        onClose={dismissOnboarding}
+        onStart={startOnboarding}
+      />
 
       <Box sx={{
         pt: 3, pb: 3.5, mb: 3,

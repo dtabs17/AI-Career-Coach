@@ -2,26 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useNavigate } from "react-router-dom";
 import {
-  Alert, CircularProgress, TextField, Tooltip, Box, Typography,
+  Alert, CircularProgress, TextField, Tooltip, Box, Typography, Button,
 } from "@mui/material";
 import {
-  Add, Send, Close, Edit, Check, Delete, ChatBubbleOutline, ContentCopy, ArrowBack,
+  Add, Send, Close, Edit, Check, Delete, ChatBubbleOutline, ContentCopy, ArrowBack, Map, Description, QuestionAnswer, RocketLaunch,
 } from "@mui/icons-material";
+import AppIcon from "../components/AppIcon";
 
 function fmt(ts) {
   try { return new Date(ts).toLocaleString(); } catch { return ""; }
 }
 
 const emptyPrompts = [
-  { icon: "🗺️", label: "Build me a 4-week learning roadmap for backend development." },
-  { icon: "📝", label: "Review my CV bullets and rewrite them in a stronger way." },
-  { icon: "🎯", label: "Give me 10 interview questions for a junior software developer." },
-  { icon: "🚀", label: "Based on my skills, what projects should I build next?" },
+  { icon: <Map sx={{ fontSize: 16 }} />, label: "Build me a 4-week learning roadmap for backend development." },
+  { icon: <Description sx={{ fontSize: 16 }} />, label: "Review my CV bullets and rewrite them in a stronger way." },
+  { icon: <QuestionAnswer sx={{ fontSize: 16 }} />, label: "Give me 10 interview questions for a junior software developer." },
+  { icon: <RocketLaunch sx={{ fontSize: 16 }} />, label: "Based on my skills, what projects should I build next?" },
 ];
-
-
-
-
 
 function renderInline(text) {
 
@@ -209,17 +206,7 @@ function MarkdownContent({ content }) {
 
 
 function CoachAvatar() {
-  return (
-    <Box sx={{
-      width: 30, height: 30, borderRadius: "10px", flexShrink: 0,
-      display: "grid", placeItems: "center", fontSize: "14px",
-      background: "linear-gradient(135deg, rgba(245,158,11,0.90), rgba(251,146,60,0.70))",
-      boxShadow: "0 4px 14px rgba(0,0,0,0.25)",
-      alignSelf: "flex-end",
-    }}>
-      ✨
-    </Box>
-  );
+  return <AppIcon size={30} />;
 }
 
 
@@ -343,13 +330,9 @@ function EmptyState({ onPrompt, coachContext }) {
       textAlign: "center",
     }}>
       <Box sx={{
-        width: 52, height: 52, borderRadius: "14px",
-        display: "grid", placeItems: "center", fontSize: "22px",
-        background: "linear-gradient(135deg, rgba(245,158,11,0.90), rgba(251,146,60,0.70))",
-        boxShadow: "0 8px 28px rgba(245,158,11,0.18)",
         mb: 2.5,
       }}>
-        ✨
+        <AppIcon size={52} />
       </Box>
 
       <Typography sx={{ fontSize: "1.25rem", fontWeight: 750, letterSpacing: "-0.02em", mb: 0.75 }}>
@@ -412,7 +395,7 @@ function EmptyState({ onPrompt, coachContext }) {
               },
             }}
           >
-            <span style={{ fontSize: 17, flexShrink: 0, marginTop: 1 }}>{p.icon}</span>
+            <Box sx={{ color: "rgba(245,158,11,0.70)", flexShrink: 0, mt: "1px", display: "flex" }}>{p.icon}</Box>
             <Typography sx={{ fontSize: "0.8125rem", color: "rgba(241,240,255,0.78)", lineHeight: 1.45 }}>
               {p.label}
             </Typography>
@@ -545,6 +528,7 @@ export default function Chat() {
 
     setErr("");
     setSending(true);
+    window.onbeforeunload = () => "The coach is still writing a response.";
     try {
       const out = await api(`/api/chat/sessions/${sessionId}/messages`, {
         method: "POST",
@@ -561,6 +545,7 @@ export default function Chat() {
       else setErr(e.message);
     } finally {
       setSending(false);
+      window.onbeforeunload = null;
     }
   }
 
@@ -672,11 +657,12 @@ export default function Chat() {
                 const isDeleting = Number(deletingId) === Number(s.id);
 
                 return (
-                  <button
+                  <div
                     key={s.id}
                     className={`chat-session ${isActive ? "is-active" : ""}`}
                     onClick={() => openSession(s.id)}
-                    disabled={isDeleting}
+                    role="button"
+                    aria-disabled={isDeleting}
                   >
                     {isRenaming ? (
                       <div className="chat-session-rename-row" onClick={(e) => e.stopPropagation()}>
@@ -718,7 +704,7 @@ export default function Chat() {
                         </button>
                       </>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -726,7 +712,7 @@ export default function Chat() {
         </aside>
       )}
 
-      <main className="chat-main">
+      <main className="chat-main" style={{ position: "relative" }}>
 
         <Box sx={{
           height: "100%",
