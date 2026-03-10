@@ -453,7 +453,7 @@ export default function Interviews() {
                 </>
               )}
               {voices.length > 0 && (
-                <>
+                <Box sx={{ display: { xs: "none", sm: "contents" } }}>
                   <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
                   <FormControl size="small" sx={{ minWidth: 190 }}>
                     <Select
@@ -471,7 +471,7 @@ export default function Interviews() {
                       ))}
                     </Select>
                   </FormControl>
-                </>
+                </Box>
               )}
             </Box>
 
