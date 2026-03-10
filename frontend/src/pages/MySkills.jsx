@@ -80,7 +80,7 @@ export default function MySkills() {
       }));
   }, [skills, addedSkillIds]);
 
-  
+
   const withEvidence = mySkills.filter((s) => s.evidence).length;
   const evidencePct = mySkills.length > 0
     ? Math.round((withEvidence / mySkills.length) * 100)
@@ -169,7 +169,7 @@ export default function MySkills() {
     setEditLevel(s.proficiency_level);
     setEditEvidence(s.evidence || "");
   }
-  
+
   function cancelEdit() {
     setEditingId(null);
     setEditLevel(3);
@@ -338,13 +338,19 @@ export default function MySkills() {
 
         <Box sx={{
           display: "grid",
-          gridTemplateColumns: "3fr 2fr 2fr 3fr 96px",
+          gridTemplateColumns: { xs: "1fr auto", md: "3fr 2fr 2fr 3fr 96px" },
           px: 3, py: 1.5,
           borderBottom: "1px solid rgba(255,255,255,0.07)",
           bgcolor: "rgba(255,255,255,0.015)",
         }}>
-          {["Skill", "Category", "Level", "Evidence", ""].map((h) => (
-            <Typography key={h} sx={{ ...sectionLabel, mb: 0 }}>{h}</Typography>
+          {["Skill", "Category", "Level", "Evidence", ""].map((h, i) => (
+            <Typography
+              key={h}
+              sx={{
+                ...sectionLabel, mb: 0,
+                display: (i === 1 || i === 2 || i === 3) ? { xs: "none", md: "block" } : "block",
+              }}
+            >{h}</Typography>
           ))}
         </Box>
 
@@ -362,7 +368,7 @@ export default function MySkills() {
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: "3fr 2fr 2fr 3fr 96px",
+                    gridTemplateColumns: { xs: "1fr auto", md: "3fr 2fr 2fr 3fr 96px" },
                     px: 3, py: 1.75,
                     alignItems: "center",
                     borderBottom: isEditing
@@ -375,15 +381,28 @@ export default function MySkills() {
                     "&:hover": { bgcolor: isEditing ? "rgba(245,158,11,0.03)" : "rgba(255,255,255,0.02)" },
                   }}
                 >
-                  <Typography sx={{ fontWeight: 650, fontSize: "0.875rem" }}>
-                    {s.name}
-                  </Typography>
+                  {/* Mobile: name + category + chip stacked. Desktop: separate columns */}
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 650, fontSize: "0.875rem" }}>
+                      {s.name}
+                    </Typography>
+                    <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center", gap: 1, mt: 0.5, flexWrap: "wrap" }}>
+                      <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.78rem" }}>
+                        {s.category || "—"}
+                      </Typography>
+                      <Chip
+                        label={`${s.proficiency_level} — ${levelLabels[s.proficiency_level] || ""}`}
+                        size="small"
+                        sx={{ ...levelChipSx(s.proficiency_level), height: 20, fontSize: "0.70rem" }}
+                      />
+                    </Box>
+                  </Box>
 
-                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                  <Typography variant="body2" sx={{ color: "text.secondary", display: { xs: "none", md: "block" } }}>
                     {s.category || "—"}
                   </Typography>
 
-                  <Box>
+                  <Box sx={{ display: { xs: "none", md: "block" } }}>
                     <Chip
                       label={`${s.proficiency_level} — ${levelLabels[s.proficiency_level] || ""}`}
                       size="small"
@@ -391,7 +410,7 @@ export default function MySkills() {
                     />
                   </Box>
 
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, pr: 2, minWidth: 0 }}>
+                  <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", gap: 1, pr: 2, minWidth: 0 }}>
                     {s.evidence ? (
                       <>
                         <CheckCircle sx={{ fontSize: 13, color: "#22c55e", flexShrink: 0 }} />

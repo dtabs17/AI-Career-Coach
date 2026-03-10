@@ -393,7 +393,8 @@ export default function Home() {
           borderRadius: "10px",
           overflow: "hidden",
           bgcolor: "rgba(255,255,255,0.015)",
-          flexShrink: 0,
+          minWidth: 0,
+          width: "100%",
         }}>
           {[
             { value: `${profileCompletion}%`, label: "Profile complete", amber: true },
@@ -401,7 +402,9 @@ export default function Home() {
             { value: `${evidencePct}%`, label: "Evidence coverage", amber: false },
           ].map((s, i) => (
             <Box key={s.label} sx={{
-              px: 2.5, py: 1.75,
+              flex: 1,
+              minWidth: 0,
+              px: { xs: 1.5, sm: 2.5 }, py: 1.75,
               borderLeft: i === 0 ? "none" : "1px solid rgba(255,255,255,0.07)",
             }}>
               <Stat value={s.value} label={s.label} amber={s.amber} />
