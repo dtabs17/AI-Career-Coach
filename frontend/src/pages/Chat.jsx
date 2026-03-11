@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useNavigate } from "react-router-dom";
 import {
-  Alert, CircularProgress, TextField, Tooltip, Box, Typography, Button,
+  Alert, CircularProgress, TextField, Tooltip, Box, Typography, Button, Drawer,
 } from "@mui/material";
 import {
   Add, Send, Close, Edit, Check, Delete, ChatBubbleOutline, ContentCopy, ArrowBack, Map, Description, QuestionAnswer, RocketLaunch,
@@ -420,7 +420,7 @@ export default function Chat() {
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
-  const [showSessions, setShowSessions] = useState(true);
+  const [showSessions, setShowSessions] = useState(false);
 
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState("");
@@ -609,108 +609,126 @@ export default function Chat() {
   const activeSession = sessions.find((s) => Number(s.id) === Number(activeId));
 
   return (
-    <div className={`chat-shell chat-embedded ${showSessions ? "" : "chat-no-sessions"}`}>
+    <div className="chat-shell chat-embedded">
 
-      {showSessions && (
-        <aside className="chat-sidebar">
-          <div className="chat-sidebar-top">
-            <span className="chat-sidebar-title">Chats</span>
-            <Box
-              component="button"
-              type="button"
-              onClick={createSession}
-              disabled={loadingSessions}
-              sx={{
-                display: "inline-flex", alignItems: "center", gap: 0.5,
-                height: 34, px: 1.5, borderRadius: "8px",
-                border: "1px solid rgba(255,255,255,0.09)",
-                bgcolor: "rgba(255,255,255,0.03)",
-                color: "rgba(241,240,255,0.80)",
-                cursor: "pointer", fontSize: "0.8rem", fontWeight: 600,
-                fontFamily: "Manrope, system-ui, sans-serif",
-                transition: "all 120ms ease",
-                "&:hover": {
-                  bgcolor: "rgba(245,158,11,0.07)",
-                  border: "1px solid rgba(245,158,11,0.22)",
-                  color: "#fcd34d",
-                },
-                "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
-              }}
-            >
-              <Add style={{ fontSize: 15 }} />
-              New
-            </Box>
+      <Drawer
+        anchor="left"
+        open={showSessions}
+        onClose={() => setShowSessions(false)}
+        sx={{
+          zIndex: 1400,
+          "& .MuiDrawer-paper": {
+            width: 280,
+            bgcolor: "#0a090f",
+            borderRight: "1px solid rgba(255,255,255,0.06)",
+            backgroundImage: "none",
+            p: "12px",
+            display: "flex",
+            flexDirection: "column",
+          },
+          "& .MuiBackdrop-root": {
+            bgcolor: "rgba(0,0,0,0.50)",
+          },
+        }}
+      >
+        <div className="chat-sidebar-top">
+          <span className="chat-sidebar-title">Chats</span>
+          <Box
+            component="button"
+            type="button"
+            onClick={() => { createSession(); setShowSessions(false); }}
+            disabled={loadingSessions}
+            sx={{
+              display: "inline-flex", alignItems: "center", gap: 0.5,
+              height: 34, px: 1.5, borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,0.09)",
+              bgcolor: "rgba(255,255,255,0.03)",
+              color: "rgba(241,240,255,0.80)",
+              cursor: "pointer", fontSize: "0.8rem", fontWeight: 600,
+              fontFamily: "Manrope, system-ui, sans-serif",
+              transition: "all 120ms ease",
+              "&:hover": {
+                bgcolor: "rgba(245,158,11,0.07)",
+                border: "1px solid rgba(245,158,11,0.22)",
+                color: "#fcd34d",
+              },
+              "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
+            }}
+          >
+            <Add style={{ fontSize: 15 }} />
+            New
+          </Box>
+        </div>
+
+        {loadingSessions ? (
+          <div className="chat-muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <CircularProgress size={12} sx={{ color: "rgba(241,240,255,0.45)" }} />
+            Loading...
           </div>
+        ) : sessions.length === 0 ? (
+          <div className="chat-muted">No chats yet. Click New.</div>
+        ) : (
+          <div className="chat-session-list">
+            {sessions.map((s) => {
+              const isActive = Number(s.id) === Number(activeId);
+              const isRenaming = Number(renamingId) === Number(s.id);
+              const isDeleting = Number(deletingId) === Number(s.id);
 
-          {loadingSessions ? (
-            <div className="chat-muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <CircularProgress size={12} sx={{ color: "rgba(241,240,255,0.45)" }} />
-              Loading...
-            </div>
-          ) : sessions.length === 0 ? (
-            <div className="chat-muted">No chats yet. Click New.</div>
-          ) : (
-            <div className="chat-session-list">
-              {sessions.map((s) => {
-                const isActive = Number(s.id) === Number(activeId);
-                const isRenaming = Number(renamingId) === Number(s.id);
-                const isDeleting = Number(deletingId) === Number(s.id);
-
-                return (
-                  <div
-                    key={s.id}
-                    className={`chat-session ${isActive ? "is-active" : ""}`}
-                    onClick={() => openSession(s.id)}
-                    role="button"
-                    aria-disabled={isDeleting}
-                  >
-                    {isRenaming ? (
-                      <div className="chat-session-rename-row" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          ref={renameRef}
-                          className="chat-session-rename-input"
-                          value={renameText}
-                          onChange={(e) => setRenameText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") commitRename(s.id);
-                            if (e.key === "Escape") cancelRename();
-                          }}
-                        />
-                        <button type="button" className="chat-iconbtn"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); commitRename(s.id); }}>
-                          <Check style={{ fontSize: 13 }} />
-                        </button>
-                        <button type="button" className="chat-iconbtn"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); cancelRename(); }}>
-                          <Close style={{ fontSize: 13 }} />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="chat-session-title">{s.title || "New Chat"}</div>
-                        <div className="chat-session-meta">{fmt(s.last_message_at || s.created_at)}</div>
-                        <button type="button" className="chat-session-edit"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(s.id); }}
-                          aria-label="Rename" title="Rename">
-                          <Edit style={{ fontSize: 13 }} />
-                        </button>
-                        <button type="button" className="chat-session-delete"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteSession(s.id); }}
-                          aria-label="Delete" title="Delete" disabled={isDeleting}>
-                          {isDeleting
-                            ? <CircularProgress size={12} sx={{ color: "rgba(241,240,255,0.45)" }} />
-                            : <Delete style={{ fontSize: 13 }} />
-                          }
-                        </button>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </aside>
-      )}
+              return (
+                <div
+                  key={s.id}
+                  className={`chat-session ${isActive ? "is-active" : ""}`}
+                  onClick={() => { openSession(s.id); setShowSessions(false); }}
+                  role="button"
+                  aria-disabled={isDeleting}
+                >
+                  {isRenaming ? (
+                    <div className="chat-session-rename-row" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        ref={renameRef}
+                        className="chat-session-rename-input"
+                        value={renameText}
+                        onChange={(e) => setRenameText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitRename(s.id);
+                          if (e.key === "Escape") cancelRename();
+                        }}
+                      />
+                      <button type="button" className="chat-iconbtn"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); commitRename(s.id); }}>
+                        <Check style={{ fontSize: 13 }} />
+                      </button>
+                      <button type="button" className="chat-iconbtn"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); cancelRename(); }}>
+                        <Close style={{ fontSize: 13 }} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="chat-session-title">{s.title || "New Chat"}</div>
+                      <div className="chat-session-meta">{fmt(s.last_message_at || s.created_at)}</div>
+                      <button type="button" className="chat-session-edit"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); startRename(s.id); }}
+                        aria-label="Rename" title="Rename">
+                        <Edit style={{ fontSize: 13 }} />
+                      </button>
+                      <button type="button" className="chat-session-delete"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteSession(s.id); }}
+                        aria-label="Delete" title="Delete" disabled={isDeleting}>
+                        {isDeleting
+                          ? <CircularProgress size={12} sx={{ color: "rgba(241,240,255,0.45)" }} />
+                          : <Delete style={{ fontSize: 13 }} />
+                        }
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Drawer>
+      
 
       <main className="chat-main" style={{ position: "relative" }}>
 
