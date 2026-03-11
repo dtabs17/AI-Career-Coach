@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useNavigate } from "react-router-dom";
 import {
-  Alert, CircularProgress, TextField, Tooltip, Box, Typography, Button, Drawer,
+  Alert, CircularProgress, TextField, Tooltip, Box, Typography, Drawer,
 } from "@mui/material";
 import {
-  Add, Send, Close, Edit, Check, Delete, ChatBubbleOutline, ContentCopy, ArrowBack, Map, Description, QuestionAnswer, RocketLaunch,
+  Add, Send, Close, Edit, Check, Delete, ChatBubbleOutline, ContentCopy, Map, Description, QuestionAnswer, RocketLaunch,
 } from "@mui/icons-material";
 import AppIcon from "../components/AppIcon";
 
@@ -743,22 +743,6 @@ export default function Chat() {
           backdropFilter: "blur(12px)",
         }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
-            <Box
-              onClick={() => navigate("/")}
-              sx={{
-                display: { xs: "grid", md: "none" },
-                width: 32, height: 32, borderRadius: "8px",
-                placeItems: "center", flexShrink: 0,
-                border: "1px solid rgba(255,255,255,0.08)",
-                bgcolor: "rgba(255,255,255,0.03)",
-                color: "rgba(241,240,255,0.65)",
-                cursor: "pointer",
-                transition: "all 120ms ease",
-                "&:hover": { bgcolor: "rgba(255,255,255,0.06)", color: "rgba(241,240,255,0.95)" },
-              }}
-            >
-              <ArrowBack style={{ fontSize: 15 }} />
-            </Box>
             <Tooltip title={showSessions ? "Hide sidebar" : "Show sidebar"} arrow>
               <Box onClick={() => setShowSessions((v) => !v)} sx={{
                 width: 32, height: 32, borderRadius: "8px",
