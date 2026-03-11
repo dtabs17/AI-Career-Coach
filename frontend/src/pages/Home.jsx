@@ -8,9 +8,8 @@ import {
 import {
   AutoAwesome, Chat, ArrowForward, MenuBook,
   CheckCircleOutline, Person, TrendingUp,
-  BoltOutlined, CalendarMonth, MicNoneOutlined,
-  CheckCircle, RadioButtonUnchecked, OpenInNew,
-  Close,
+  CalendarMonth, MicNoneOutlined,
+  CheckCircle, RadioButtonUnchecked, OpenInNew, GetApp,
 } from "@mui/icons-material";
 import AppIcon from "../components/AppIcon";
 
@@ -62,7 +61,8 @@ function OnboardingModal({ open, onClose, onStart }) {
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={()=>{}}
+      disableEscapeKeyDown
       maxWidth="sm"
       fullWidth
       PaperProps={{
@@ -86,21 +86,6 @@ function OnboardingModal({ open, onClose, onStart }) {
           <Typography sx={{ fontSize: "0.875rem", color: "rgba(241,240,255,0.50)", lineHeight: 1.55 }}>
             Here is how to get the most out of the app in four steps.
           </Typography>
-        </Box>
-        <Box
-          onClick={onClose}
-          role="button"
-          sx={{
-            ml: 2, flexShrink: 0, width: 28, height: 28,
-            display: "grid", placeItems: "center",
-            borderRadius: "7px", cursor: "pointer",
-            color: "rgba(241,240,255,0.30)",
-            border: "1px solid rgba(255,255,255,0.07)",
-            transition: "all 120ms ease",
-            "&:hover": { color: "rgba(241,240,255,0.70)", bgcolor: "rgba(255,255,255,0.05)" },
-          }}
-        >
-          <Close sx={{ fontSize: 15 }} />
         </Box>
       </Box>
 
@@ -317,6 +302,8 @@ export default function Home() {
   const [hasPreferredRoles, setHasPreferredRoles] = useState(false);
   const [hasRun, setHasRun] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [appInstalled, setAppInstalled] = useState(false);
 
   useEffect(() => {
     if (!isAuthed || !user?.id) return;
@@ -325,6 +312,37 @@ export default function Home() {
       setShowOnboarding(true);
     }
   }, [isAuthed, user?.id]);
+
+  useEffect(() => {
+    if (window.__installPrompt) {
+      setInstallPrompt(window.__installPrompt);
+    }
+
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      window.__installPrompt = e;
+    };
+    const installedHandler = () => {
+      setAppInstalled(true);
+      window.__installPrompt = null;
+    };
+
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", installedHandler);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
+  }, []);
+
+  async function handleInstall() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") setAppInstalled(true);
+    setInstallPrompt(null);
+  }
 
   function dismissOnboarding() {
     if (user?.id) localStorage.setItem(`onboarding_seen_${user.id}`, "1");
@@ -531,6 +549,20 @@ export default function Home() {
           <Typography sx={{ color: "text.secondary", fontSize: "0.875rem" }}>
             Track your skills, get role recommendations, and improve your interview performance.
           </Typography>
+          {installPrompt && !appInstalled && (
+            <Box sx={{ mt: 2 }}>
+              <Button
+                variant="outlined"
+                color="primary"
+                size="small"
+                startIcon={<GetApp sx={{ fontSize: "15px !important" }} />}
+                onClick={handleInstall}
+                sx={{ fontSize: "0.8rem" }}
+              >
+                Install app
+              </Button>
+            </Box>
+          )}
         </Box>
 
         <Box sx={{
