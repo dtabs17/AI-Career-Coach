@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState} from "react";
 import {
-  Box, Paper, Typography, Chip, Collapse, IconButton, Tooltip, Divider,
+  Box, Paper, Typography, Chip, Collapse, IconButton, Tooltip, Divider, Button,
 } from "@mui/material";
 import { ExpandMore, Star, CheckCircle, RemoveCircle, Cancel, AutoAwesome } from "@mui/icons-material";
 
@@ -16,17 +16,57 @@ function joinNames(arr, limit = 12) {
   return clipped.join(", ") + (names.length > limit ? "..." : "");
 }
 
+function DeltaPill({ roleId, finalScore, prevItems }) {
+  if (!prevItems) return null;
 
+  const prev = prevItems.get(roleId);
+  if (!prev) {
+    return (
+      <Tooltip title="This role was not in your previous run" arrow>
+        <Chip
+          label="new"
+          size="small"
+          sx={{
+            bgcolor: "rgba(34,197,94,0.10)",
+            color: "#86efac",
+            border: "1px solid rgba(34,197,94,0.20)",
+            fontWeight: 700,
+            fontSize: "0.67rem",
+            height: 20,
+          }}
+        />
+      </Tooltip>
+    );
+  }
 
-
+  const delta = finalScore - prev.final_score;
+  if (Math.abs(delta) < 0.05) return null;
+  const up = delta > 0;
+  return (
+    <Tooltip title={`Score changed from ${prev.final_score.toFixed(1)} in previous run`} arrow>
+      <Chip
+        label={up ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
+        size="small"
+        sx={{
+          bgcolor: up ? "rgba(34,197,94,0.10)" : "rgba(239,68,68,0.10)",
+          color: up ? "#86efac" : "#fca5a5",
+          border: `1px solid ${up ? "rgba(34,197,94,0.20)" : "rgba(239,68,68,0.20)"}`,
+          fontWeight: 700,
+          fontSize: "0.70rem",
+          height: 20,
+        }}
+      />
+    </Tooltip>
+  );
+}
 
 function ScorePill({ value, type }) {
   const styles = {
-    amber:  { bgcolor: "rgba(245,158,11,0.12)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.22)" },
-    green:  { bgcolor: "rgba(34,197,94,0.10)",  color: "#86efac", border: "1px solid rgba(34,197,94,0.20)"  },
-    yellow: { bgcolor: "rgba(234,179,8,0.10)",  color: "#fde047", border: "1px solid rgba(234,179,8,0.20)"  },
-    red:    { bgcolor: "rgba(239,68,68,0.10)",  color: "#fca5a5", border: "1px solid rgba(239,68,68,0.20)"  },
-    muted:  { bgcolor: "rgba(255,255,255,0.06)", color: "rgba(241,240,255,0.40)", border: "1px solid rgba(255,255,255,0.10)" },
+    amber: { bgcolor: "rgba(245,158,11,0.12)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.22)" },
+    green: { bgcolor: "rgba(34,197,94,0.10)", color: "#86efac", border: "1px solid rgba(34,197,94,0.20)" },
+    yellow: { bgcolor: "rgba(234,179,8,0.10)", color: "#fde047", border: "1px solid rgba(234,179,8,0.20)" },
+    red: { bgcolor: "rgba(239,68,68,0.10)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.20)" },
+    muted: { bgcolor: "rgba(255,255,255,0.06)", color: "rgba(241,240,255,0.40)", border: "1px solid rgba(255,255,255,0.10)" },
   };
   return (
     <Chip
@@ -47,6 +87,7 @@ const sectionLabel = {
 
 export default function RoleRecommendationsTable({
   items,
+  prevItems = null,
   emptyText = "No recommendations to show.",
 }) {
   const [openRoleId, setOpenRoleId] = useState(null);
@@ -55,7 +96,13 @@ export default function RoleRecommendationsTable({
     setOpenRoleId((prev) => (prev === roleId ? null : roleId));
   }
 
-if (!items || items.length === 0) {
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 5;
+  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+  const visibleItems = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+
+  if (!items || items.length === 0) {
     return (
       <Box sx={{
         mt: 3, py: 7, px: 3,
@@ -85,21 +132,21 @@ if (!items || items.length === 0) {
 
   return (
     <Box sx={{ mt: 3, display: "grid", gap: 1.5 }}>
-      {items.map((r, idx) => {
+      {visibleItems.map((r, idx) => { const rank = page * PAGE_SIZE + idx + 1;
         const competency = safeNum(r.competency_score);
-        const bonus      = safeNum(r.preference_bonus);
+        const bonus = safeNum(r.preference_bonus);
         const finalScore = safeNum(r.final_score);
-        const isOpen     = openRoleId === r.role_id;
-        const exp        = r.explanation || null;
+        const isOpen = openRoleId === r.role_id;
+        const exp = r.explanation || null;
 
         const matched = exp?.summary?.matched_count ?? exp?.matched?.length ?? 0;
         const partial = exp?.summary?.partial_count ?? exp?.partial?.length ?? 0;
         const missing = exp?.summary?.missing_count ?? exp?.missing?.length ?? 0;
 
-        const pref             = r.preference || exp?.preference || null;
-        const isPreferredRole  = pref?.is_preferred_role ? true : false;
+        const pref = r.preference || exp?.preference || null;
+        const isPreferredRole = pref?.is_preferred_role ? true : false;
         const techOverlapCount = safeNum(pref?.tech_overlap_count);
-        const missingText      = joinNames(exp?.missing, 12);
+        const missingText = joinNames(exp?.missing, 12);
 
         return (
           <Paper key={r.role_id} sx={{ overflow: "hidden" }}>
@@ -119,7 +166,7 @@ if (!items || items.length === 0) {
                 minWidth: 22,
                 flexShrink: 0,
               }}>
-                #{idx + 1}
+                #{rank}
               </Typography>
 
               <Box sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -160,6 +207,8 @@ if (!items || items.length === 0) {
                 <Tooltip title="Final score: Competency score plus preference bonus. This is the number used to rank roles." arrow>
                   <span><ScorePill value={finalScore.toFixed(1)} type="amber" /></span>
                 </Tooltip>
+
+                <DeltaPill roleId={r.role_id} finalScore={finalScore} prevItems={prevItems} />
               </Box>
 
               <Tooltip title={isOpen ? "Hide details" : "Show details"} arrow>
@@ -206,8 +255,8 @@ if (!items || items.length === 0) {
                       size="small"
                       sx={{
                         bgcolor: "rgba(255,255,255,0.06)",
-                        color:   "rgba(241,240,255,0.60)",
-                        border:  "1px solid rgba(255,255,255,0.10)",
+                        color: "rgba(241,240,255,0.60)",
+                        border: "1px solid rgba(255,255,255,0.10)",
                       }}
                     />
                   )}
@@ -218,8 +267,36 @@ if (!items || items.length === 0) {
                   tie-breaker using preferred roles and preferred technologies.
                 </Typography>
 
+                {(() => {
+                  if (!prevItems) return null;
+                  const prev = prevItems.get(r.role_id);
+                  if (!prev) return null;
+                  const prevExp = prev.explanation || {};
+                  const currExp = exp || {};
+                  const prevMatchedIds = new Set((prevExp.matched || []).map((s) => s.skill_id));
+                  const currMatchedIds = new Set((currExp.matched || []).map((s) => s.skill_id));
+                  const gained = (currExp.matched || []).filter((s) => !prevMatchedIds.has(s.skill_id));
+                  const lost = (prevExp.matched || []).filter((s) => !currMatchedIds.has(s.skill_id));
+                  if (!gained.length && !lost.length) return null;
+                  return (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography sx={{ ...sectionLabel, mb: 0.75 }}>Changes since last run</Typography>
+                      {gained.length > 0 && (
+                        <Typography variant="body2" sx={{ color: "#86efac", fontSize: "0.82rem", mb: 0.5 }}>
+                          Now matching: {gained.map((s) => s.name).join(", ")}
+                        </Typography>
+                      )}
+                      {lost.length > 0 && (
+                        <Typography variant="body2" sx={{ color: "#fca5a5", fontSize: "0.82rem" }}>
+                          No longer matching: {lost.map((s) => s.name).join(", ")}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })()}
+
                 {missingText && (
-                  <Box>
+                  <Box sx={{ mt: 2 }}>
                     <Typography sx={{ ...sectionLabel, mb: 0.75 }}>Skills to work on</Typography>
                     <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.82rem" }}>
                       {missingText}
@@ -231,6 +308,35 @@ if (!items || items.length === 0) {
           </Paper>
         );
       })}
+      {totalPages > 1 && (
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1.5, px: 0.5 }}>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, items.length)} of {items.length} roles
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              color="secondary"
+              disabled={page === 0}
+              onClick={() => setPage((p) => p - 1)}
+              sx={{ minWidth: 80 }}
+            >
+              Previous
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="secondary"
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage((p) => p + 1)}
+              sx={{ minWidth: 80 }}
+            >
+              Next
+            </Button>
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 }
