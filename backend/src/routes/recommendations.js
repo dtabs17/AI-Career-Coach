@@ -74,10 +74,10 @@ router.post("/run", requireAuth, async (req, res, next) => {
         .sort((a, b) => a.skill_id - b.skill_id),
       profile: profile
         ? {
-            academic_focus: profile.academic_focus || null,
-            preferred_technologies: preferredTech.length ? preferredTech : null,
-            preferred_roles: preferredRoles.length ? preferredRoles : null,
-          }
+          academic_focus: profile.academic_focus || null,
+          preferred_technologies: preferredTech.length ? preferredTech : null,
+          preferred_roles: preferredRoles.length ? preferredRoles : null,
+        }
         : null,
       algo: {
         version: algoVersion,
@@ -140,12 +140,12 @@ router.post("/run", requireAuth, async (req, res, next) => {
 
         const preferredAlignment = preferredRoles.length
           ? all
-              .filter((x) => x.preference?.is_preferred_role)
-              .sort((a, b) => {
-                if (b.final_score !== a.final_score) return b.final_score - a.final_score;
-                return b.competency_score - a.competency_score;
-              })
-              .slice(0, topN)
+            .filter((x) => x.preference?.is_preferred_role)
+            .sort((a, b) => {
+              if (b.final_score !== a.final_score) return b.final_score - a.final_score;
+              return b.competency_score - a.competency_score;
+            })
+            .slice(0, topN)
           : [];
 
         return res.json({
@@ -213,8 +213,8 @@ router.post("/run", requireAuth, async (req, res, next) => {
     for (const role of byRole.values()) {
       const scored = scoreRole({ role, userSkillMap, preferredRolesSet, preferredTechSet });
 
-      
-      
+
+
       scoredAll.push({
         ...scored,
         description: role.description,
@@ -227,12 +227,12 @@ router.post("/run", requireAuth, async (req, res, next) => {
 
     const preferredAlignment = preferredRoles.length
       ? scoredAll
-          .filter((r) => r.preference?.is_preferred_role)
-          .sort((a, b) => {
-            if (b.final_score !== a.final_score) return b.final_score - a.final_score;
-            return b.competency_score - a.competency_score;
-          })
-          .slice(0, topN)
+        .filter((r) => r.preference?.is_preferred_role)
+        .sort((a, b) => {
+          if (b.final_score !== a.final_score) return b.final_score - a.final_score;
+          return b.competency_score - a.competency_score;
+        })
+        .slice(0, topN)
       : [];
 
     await client.query("BEGIN");
@@ -282,7 +282,7 @@ router.post("/run", requireAuth, async (req, res, next) => {
   } catch (err) {
     try {
       await client.query("ROLLBACK");
-    } catch {}
+    } catch { }
     next(err);
   } finally {
     client.release();
@@ -293,10 +293,23 @@ router.get("/runs", requireAuth, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { rows } = await pool.query(
-      `SELECT id, user_id, created_at, algo_version, input_hash
-       FROM recommendation_runs
-       WHERE user_id = $1
-       ORDER BY created_at DESC
+      `SELECT 
+         rr.id,
+         rr.user_id,
+         rr.created_at,
+         rr.algo_version,
+         rr.input_hash,
+         (
+           SELECT cr.title
+           FROM recommendation_items ri
+           JOIN career_roles cr ON cr.id = ri.role_id
+           WHERE ri.run_id = rr.id
+           ORDER BY ri.final_score DESC, ri.competency_score DESC
+           LIMIT 1
+         ) AS top_role_title
+       FROM recommendation_runs rr
+       WHERE rr.user_id = $1
+       ORDER BY rr.created_at DESC
        LIMIT 25`,
       [userId]
     );

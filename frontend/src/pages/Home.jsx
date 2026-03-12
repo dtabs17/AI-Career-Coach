@@ -544,7 +544,7 @@ export default function Home() {
             {greeting()}
           </Typography>
           <Typography variant="h4" sx={{ fontSize: { xs: "1.7rem", md: "2rem" }, mb: 1, letterSpacing: "-0.035em" }}>
-            {firstName || "Student"} 👋
+            {firstName || "Student"}
           </Typography>
           <Typography sx={{ color: "text.secondary", fontSize: "0.875rem" }}>
             Track your skills, get role recommendations, and improve your interview performance.

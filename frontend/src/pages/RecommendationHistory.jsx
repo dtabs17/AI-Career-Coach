@@ -29,11 +29,15 @@ export default function RecommendationHistory() {
 
   const [runs, setRuns] = useState([]);
   const [activeRun, setActiveRun] = useState(null);
+  const [prevRunItems, setPrevRunItems] = useState(null);
+  const [prevRunDate, setPrevRunDate] = useState(null);
 
   async function loadRuns() {
     setErr("");
     setLoadingRuns(true);
     setActiveRun(null);
+    setPrevRunItems(null);
+    setPrevRunDate(null);
     try {
       const data = await api("/api/recommendations/runs");
       setRuns(Array.isArray(data) ? data : []);
@@ -48,9 +52,22 @@ export default function RecommendationHistory() {
   async function openRun(runId) {
     setErr("");
     setLoadingRun(true);
+    setPrevRunItems(null);
+    setPrevRunDate(null);
     try {
-      const data = await api(`/api/recommendations/runs/${runId}`);
+      const idx = runs.findIndex((r) => r.id === runId);
+      const prevRun = idx >= 0 && idx + 1 < runs.length ? runs[idx + 1] : null;
+
+      const [data, prevData] = await Promise.all([
+        api(`/api/recommendations/runs/${runId}`),
+        prevRun ? api(`/api/recommendations/runs/${prevRun.id}`) : Promise.resolve(null),
+      ]);
+
       setActiveRun(data);
+      if (prevData?.items?.length) {
+        setPrevRunItems(prevData.items);
+        setPrevRunDate(prevRun.created_at);
+      }
     } catch (e) {
       if (e.status === 401) navigate("/login");
       else setErr(e.message);
@@ -60,6 +77,10 @@ export default function RecommendationHistory() {
   }
 
   useEffect(() => { loadRuns(); }, []);
+
+  const prevItemsMap = prevRunItems
+    ? new Map(prevRunItems.map((item) => [item.role_id, item]))
+    : null;
 
   return (
     <Box className="page-animate page-content">
@@ -75,7 +96,7 @@ export default function RecommendationHistory() {
         <Box>
           <Typography variant="h4" sx={{ mb: 0.5 }}>Recommendation history</Typography>
           <Typography sx={{ color: "text.secondary" }}>
-            View previous runs and compare results over time.
+            View previous runs and compare scores over time.
           </Typography>
         </Box>
 
@@ -108,7 +129,6 @@ export default function RecommendationHistory() {
       {err && <Alert severity="error" sx={{ mb: 2.5 }}>{err}</Alert>}
 
       <Paper sx={{ overflow: "hidden", mb: 2.5 }}>
-
         <Box sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr 48px", md: "2fr 1.5fr 3fr 48px" },
@@ -154,41 +174,36 @@ export default function RecommendationHistory() {
                 bgcolor: activeRun?.run?.id === r.id
                   ? "rgba(245,158,11,0.04)"
                   : "transparent",
-                "&:hover": { bgcolor: "rgba(255,255,255,0.025)" },
               }}
             >
-              <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.82rem" }}>
+              <Typography sx={{ fontSize: "0.8375rem", color: "rgba(241,240,255,0.75)" }}>
                 {fmt(r.created_at)}
               </Typography>
 
               <Box sx={{ display: { xs: "none", md: "block" } }}>
                 <Chip
-                  label={r.algo_version}
+                  label={r.algo_version || "unknown"}
                   size="small"
                   sx={{
                     bgcolor: "rgba(255,255,255,0.06)",
-                    color: "rgba(241,240,255,0.60)",
+                    color: "rgba(241,240,255,0.55)",
                     border: "1px solid rgba(255,255,255,0.10)",
                     fontSize: "0.72rem",
+                    height: 20,
                   }}
                 />
               </Box>
 
-              <Typography
-                variant="body2"
-                sx={{
-                  display: { xs: "none", md: "block" },
-                  fontSize: "0.82rem",
-                  color: r.top_role_title
-                    ? "rgba(241,240,255,0.75)"
-                    : "text.secondary",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  pr: 2,
-                  fontStyle: r.top_role_title ? "normal" : "italic",
-                }}
-              >
+              <Typography sx={{
+                fontSize: "0.8375rem",
+                display: { xs: "none", md: "block" },
+                color: r.top_role_title ? "rgba(241,240,255,0.75)" : "text.secondary",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                pr: 2,
+                fontStyle: r.top_role_title ? "normal" : "italic",
+              }}>
                 {r.top_role_title || "Open to view"}
               </Typography>
 
@@ -232,14 +247,36 @@ export default function RecommendationHistory() {
             flexWrap: "wrap",
             gap: 1,
           }}>
-            <Typography sx={{ fontWeight: 700 }}>Run results</Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <Typography sx={{ fontWeight: 700 }}>Run results</Typography>
+              {prevRunDate && (
+                <Chip
+                  label={`vs ${fmt(prevRunDate)}`}
+                  size="small"
+                  sx={{
+                    bgcolor: "rgba(255,255,255,0.05)",
+                    color: "rgba(241,240,255,0.45)",
+                    border: "1px solid rgba(255,255,255,0.09)",
+                    fontSize: "0.70rem",
+                    height: 20,
+                  }}
+                />
+              )}
+            </Box>
             <Typography variant="caption" sx={{ color: "text.secondary" }}>
               {fmt(activeRun.run.created_at)}
             </Typography>
           </Box>
+          {prevRunDate && (
+            <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
+              Score changes shown against the previous run. Green = improved, red = declined, "new" = role not in previous run.
+            </Typography>
+          )}
           <Divider sx={{ mb: 0.5 }} />
           <RoleRecommendationsTable
+            key={activeRun.run.id}
             items={activeRun.items || []}
+            prevItems={prevItemsMap}
             emptyText="No items found for this run."
           />
         </Paper>
