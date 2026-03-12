@@ -53,7 +53,7 @@ const chipSx = {
   },
 };
 
-// ─── Completion check row ──────────────────────────────────────────────────────
+
 
 function CompletionItem({ label, done }) {
   return (
@@ -73,7 +73,7 @@ function CompletionItem({ label, done }) {
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+
 
 export default function Profile() {
 const [err, setErr] = useState("");
@@ -202,7 +202,7 @@ showToast("Profile saved.");
   return (
     <Box className="page-animate page-content">
 
-      {/* ── Header with completion bar ─────────────────────────────────────── */}
+       
       <Box sx={{
         pb: 3, mb: 3,
         borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -218,7 +218,7 @@ showToast("Profile saved.");
             A complete profile gives the coach more context and improves your recommendation accuracy.
           </Typography>
 
-          {/* Completion bar */}
+           
           <Box sx={{ maxWidth: 420 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
               <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", fontWeight: 600 }}>
@@ -247,24 +247,12 @@ showToast("Profile saved.");
           </Box>
         </Box>
 
-        <Button
-          variant="outlined"
-          color="secondary"
-          size="small"
-          startIcon={loading ? <CircularProgress size={13} /> : <Refresh />}
-          onClick={load}
-          disabled={loading}
-          sx={{ flexShrink: 0, mt: 0.5 }}
-        >
-          Reload
-        </Button>
       </Box>
 
 {err && <Alert severity="error" sx={{ mb: 2.5 }}>{err}</Alert>}
 
       <Box component="form" onSubmit={save}>
 
-        {/* ── Basic info — two column ──────────────────────────────────────── */}
         <Box sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", lg: "1fr 300px" },
@@ -273,7 +261,7 @@ showToast("Profile saved.");
           alignItems: "start",
         }}>
 
-          {/* Left: fields */}
+           
           <Paper sx={{ p: 3 }}>
             <Typography sx={{ ...sectionLabel }}>Basic info</Typography>
             <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 2 }}>
@@ -328,7 +316,7 @@ showToast("Profile saved.");
             />
           </Paper>
 
-          {/* Right: completion checklist */}
+           
           <Paper sx={{ p: 2.5 }}>
             <Typography sx={{ ...sectionLabel, mb: 1.5 }}>Checklist</Typography>
             <Box sx={{ display: "grid", gap: 1.25 }}>
@@ -351,10 +339,10 @@ showToast("Profile saved.");
           </Paper>
         </Box>
 
-        {/* ── Preferred technologies + roles ──────────────────────────────── */}
+         
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2.5, mb: 2.5 }}>
 
-          {/* Technologies */}
+           
           <Paper sx={{ p: 3 }}>
             <Typography sx={{ ...sectionLabel }}>Preferred technologies</Typography>
             <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 2 }}>
@@ -421,7 +409,7 @@ showToast("Profile saved.");
             )}
           </Paper>
 
-          {/* Roles */}
+           
           <Paper sx={{ p: 3 }}>
             <Typography sx={{ ...sectionLabel }}>Preferred roles</Typography>
             <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 2 }}>
@@ -489,7 +477,6 @@ showToast("Profile saved.");
           </Paper>
         </Box>
 
-        {/* Save */}
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Button
             type="submit"

@@ -146,7 +146,7 @@ function OnboardingModal({ open, onClose, onStart }) {
   );
 }
 
-function Stat({ value, label, amber }) {
+function Stat({ value, label, amber, green }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
       <Typography sx={{
@@ -154,7 +154,7 @@ function Stat({ value, label, amber }) {
         fontSize: "1.75rem",
         lineHeight: 1,
         letterSpacing: "-0.04em",
-        color: amber ? "#f59e0b" : "#f1f0ff",
+        color: green ? "#22c55e" : amber ? "#f59e0b" : "#f1f0ff",
       }}>
         {value}
       </Typography>
@@ -576,7 +576,7 @@ export default function Home() {
           width: "100%",
         }}>
           {[
-            { value: `${profileCompletion}%`, label: "Profile complete", amber: true },
+            { value: `${profileCompletion}%`, label: "Profile complete", amber: profileCompletion < 100, green: profileCompletion === 100 },
             { value: skillsAdded, label: "Skills added", amber: false },
             { value: `${evidencePct}%`, label: "Evidence coverage", amber: false },
           ].map((s, i) => (
@@ -586,7 +586,7 @@ export default function Home() {
               px: { xs: 1.5, sm: 2.5 }, py: 1.75,
               borderLeft: i === 0 ? "none" : "1px solid rgba(255,255,255,0.07)",
             }}>
-              <Stat value={s.value} label={s.label} amber={s.amber} />
+              <Stat value={s.value} label={s.label} amber={s.amber} green={s.green} />
             </Box>
           ))}
         </Box>

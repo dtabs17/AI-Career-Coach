@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import {
   Box, Paper, Typography, Button, Alert, Tooltip,
-  CircularProgress, TextField, InputAdornment, IconButton,
+  CircularProgress, TextField, InputAdornment, IconButton, Popover,
 } from "@mui/material";
-import { Search, Add, CheckCircle } from "@mui/icons-material";
+import { Search, Add, CheckCircle, InfoOutlined, KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
 import { useToast } from "../toast/ToastContext";
 
 const sectionLabel = {
@@ -79,6 +79,11 @@ export default function Skills() {
   const [mySkillIds, setMySkillIds] = useState(new Set());
   const [addingId, setAddingId] = useState(null);
   const showToast = useToast();
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
+  const [infoAnchor, setInfoAnchor] = useState(null);
+  const [infoSkill, setInfoSkill] = useState(null);
+  const [infoRoles, setInfoRoles] = useState(null);
+  const rolesCache = useRef({});
 
   useEffect(() => {
     (async () => {
@@ -135,6 +140,48 @@ export default function Skills() {
   }, [filtered]);
 
   const groupedCategories = Object.keys(grouped).sort();
+
+  useEffect(() => {
+    setExpandedGroups(new Set());
+  }, [activeCategory]);
+
+  const isGroupExpanded = (cat) => activeCategory !== "All" || expandedGroups.has(cat);
+
+  function toggleGroup(cat) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  }
+
+
+  async function fetchRolesFor(skillId) {
+    if (rolesCache.current[skillId] !== undefined) return rolesCache.current[skillId];
+    try {
+      const data = await api(`/api/skills/${skillId}/roles`);
+      rolesCache.current[skillId] = Array.isArray(data) ? data : [];
+    } catch {
+      rolesCache.current[skillId] = [];
+    }
+    return rolesCache.current[skillId];
+  }
+
+  function openInfo(e, skill) {
+    e.stopPropagation();
+    setInfoAnchor(e.currentTarget);
+    setInfoSkill(skill);
+    const cached = rolesCache.current[skill.id];
+    setInfoRoles(cached !== undefined ? cached : null);
+    fetchRolesFor(skill.id).then((data) => setInfoRoles(data));
+  }
+
+  function closeInfo() {
+    setInfoAnchor(null);
+    setInfoSkill(null);
+    setInfoRoles(null);
+  }
 
   async function quickAdd(skill) {
     setAddingId(skill.id);
@@ -247,14 +294,21 @@ export default function Skills() {
               {groupedCategories.map((cat) => (
                 <Paper key={cat} sx={{ overflow: "hidden" }}>
 
-                  <Box sx={{
-                    px: 3, py: 1.75,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    borderBottom: "1px solid rgba(255,255,255,0.06)",
-                    bgcolor: "rgba(255,255,255,0.012)",
-                  }}>
+                  <Box
+                    onClick={() => activeCategory === "All" && toggleGroup(cat)}
+                    sx={{
+                      px: 3, py: 1.75,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      borderBottom: isGroupExpanded(cat) ? "1px solid rgba(255,255,255,0.06)" : "none",
+                      bgcolor: "rgba(255,255,255,0.012)",
+                      cursor: activeCategory === "All" ? "pointer" : "default",
+                      userSelect: "none",
+                      transition: "background 120ms ease",
+                      "&:hover": activeCategory === "All" ? { bgcolor: "rgba(255,255,255,0.025)" } : {},
+                    }}
+                  >
                     <Typography sx={{
                       fontWeight: 680,
                       fontSize: "0.875rem",
@@ -262,70 +316,147 @@ export default function Skills() {
                     }}>
                       {cat}
                     </Typography>
-                    <Typography sx={{ ...sectionLabel }}>
-                      {grouped[cat].length} skill{grouped[cat].length !== 1 ? "s" : ""}
-                    </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography sx={{ ...sectionLabel }}>
+                        {grouped[cat].length} skill{grouped[cat].length !== 1 ? "s" : ""}
+                      </Typography>
+                      {activeCategory === "All" && (
+                        isGroupExpanded(cat)
+                          ? <KeyboardArrowUp sx={{ fontSize: 16, color: "rgba(241,240,255,0.35)" }} />
+                          : <KeyboardArrowDown sx={{ fontSize: 16, color: "rgba(241,240,255,0.35)" }} />
+                      )}
+                    </Box>
                   </Box>
-
-                  <Box>
-                    {grouped[cat].map((s, i) => (
-                      <Box
-                        key={s.id}
-                        sx={{
-                          px: 3, py: 1.4,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          borderBottom: i < grouped[cat].length - 1
-                            ? "1px solid rgba(255,255,255,0.04)"
-                            : "none",
-                          transition: "background 120ms ease",
-                          "&:hover": { bgcolor: "rgba(255,255,255,0.02)" },
-                        }}
-                      >
-                        <Typography sx={{ fontWeight: 580, fontSize: "0.875rem" }}>
-                          {s.name}
-                        </Typography>
-                        {isAuthed && (
-                          mySkillIds.has(s.id) ? (
-                            <Tooltip title="Already in My Skills" arrow>
-                              <CheckCircle sx={{ fontSize: 16, color: "#22c55e", flexShrink: 0 }} />
+                  {isGroupExpanded(cat) && (
+                    <Box>
+                      {grouped[cat].map((s, i) => (
+                        <Box
+                          key={s.id}
+                          onMouseEnter={() => fetchRolesFor(s.id)}
+                          sx={{
+                            px: 3, py: 1.4,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            borderBottom: i < grouped[cat].length - 1
+                              ? "1px solid rgba(255,255,255,0.04)"
+                              : "none",
+                            transition: "background 120ms ease",
+                            "&:hover": { bgcolor: "rgba(255,255,255,0.02)" },
+                          }}
+                        >
+                          <Typography sx={{ fontWeight: 580, fontSize: "0.875rem" }}>
+                            {s.name}
+                          </Typography>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Tooltip title="See which roles require this skill" arrow>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => openInfo(e, s)}
+                                onMouseEnter={() => fetchRolesFor(s.id)}
+                                sx={{
+                                  opacity: 0,
+                                  ".MuiBox-root:hover &": { opacity: 1 },
+                                  transition: "opacity 120ms ease",
+                                  color: "rgba(241,240,255,0.45)",
+                                  "&:hover": {
+                                    bgcolor: "rgba(255,255,255,0.06) !important",
+                                    color: "rgba(241,240,255,0.90) !important",
+                                  },
+                                }}
+                              >
+                                <InfoOutlined sx={{ fontSize: 15 }} />
+                              </IconButton>
                             </Tooltip>
-                          ) : (
-                            <Tooltip title="Add to My Skills at Intermediate level" arrow>
-                              <span>
-                                <IconButton
-                                  size="small"
-                                  disabled={addingId === s.id}
-                                  onClick={() => quickAdd(s)}
-                                  sx={{
-                                    opacity: 0,
-                                    ".MuiBox-root:hover &": { opacity: 1 },
-                                    transition: "opacity 120ms ease",
-                                    "&:hover": {
-                                      bgcolor: "rgba(245,158,11,0.10) !important",
-                                      color: "#fcd34d !important",
-                                    },
-                                  }}
-                                >
-                                  {addingId === s.id
-                                    ? <CircularProgress size={13} />
-                                    : <Add fontSize="small" />
-                                  }
-                                </IconButton>
-                              </span>
-                            </Tooltip>
-                          )
-                        )}
-                      </Box>
-                    ))}
-                  </Box>
+                            {isAuthed && (
+                              mySkillIds.has(s.id) ? (
+                                <Tooltip title="Already in My Skills" arrow>
+                                  <CheckCircle sx={{ fontSize: 16, color: "#22c55e", flexShrink: 0 }} />
+                                </Tooltip>
+                              ) : (
+                                <Tooltip title="Add to My Skills at Intermediate level" arrow>
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      disabled={addingId === s.id}
+                                      onClick={() => quickAdd(s)}
+                                      sx={{
+                                        opacity: 0,
+                                        ".MuiBox-root:hover &": { opacity: 1 },
+                                        transition: "opacity 120ms ease",
+                                        "&:hover": {
+                                          bgcolor: "rgba(245,158,11,0.10) !important",
+                                          color: "#fcd34d !important",
+                                        },
+                                      }}
+                                    >
+                                      {addingId === s.id
+                                        ? <CircularProgress size={13} />
+                                        : <Add fontSize="small" />
+                                      }
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              )
+                            )}
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
                 </Paper>
               ))}
             </Box>
           )}
         </>
       )}
+
+      <Popover
+        open={Boolean(infoAnchor)}
+        anchorEl={infoAnchor}
+        onClose={closeInfo}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        sx={{
+          "& .MuiPopover-paper": {
+            bgcolor: "#13111f",
+            border: "1px solid rgba(255,255,255,0.09)",
+            borderRadius: "10px",
+            p: 2,
+            maxWidth: 260,
+            minWidth: 180,
+          },
+        }}
+      >
+        {infoSkill && (
+          <Box>
+            <Typography sx={{ fontWeight: 680, fontSize: "0.875rem", mb: 1 }}>
+              {infoSkill.name}
+            </Typography>
+            {infoRoles === null ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress size={12} sx={{ color: "rgba(241,240,255,0.45)" }} />
+                <Typography sx={{ fontSize: "0.8rem", color: "text.secondary" }}>Loading...</Typography>
+              </Box>
+            ) : infoRoles.length === 0 ? (
+              <Typography sx={{ fontSize: "0.8rem", color: "text.secondary" }}>
+                Not required by any role.
+              </Typography>
+            ) : (
+              <>
+                <Typography sx={{ ...sectionLabel, mb: 0.75 }}>Required by</Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.4 }}>
+                  {infoRoles.map((r) => (
+                    <Typography key={r.id} sx={{ fontSize: "0.8125rem", color: "rgba(241,240,255,0.80)" }}>
+                      {r.title}
+                    </Typography>
+                  ))}
+                </Box>
+              </>
+            )}
+          </Box>
+        )}
+      </Popover>
     </Box>
   );
 }
