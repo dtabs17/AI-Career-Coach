@@ -1,8 +1,9 @@
-import { useState} from "react";
+import { useState } from "react";
 import {
   Box, Paper, Typography, Chip, Collapse, IconButton, Tooltip, Divider, Button,
 } from "@mui/material";
-import { ExpandMore, Star, CheckCircle, RemoveCircle, Cancel, AutoAwesome } from "@mui/icons-material";
+import { ExpandMore, Star, CheckCircle, RemoveCircle, Cancel, AutoAwesome, CalendarMonth } from "@mui/icons-material";
+import { Link } from "react-router-dom";
 
 function safeNum(n) {
   const x = Number(n);
@@ -132,7 +133,8 @@ export default function RoleRecommendationsTable({
 
   return (
     <Box sx={{ mt: 3, display: "grid", gap: 1.5 }}>
-      {visibleItems.map((r, idx) => { const rank = page * PAGE_SIZE + idx + 1;
+      {visibleItems.map((r, idx) => {
+        const rank = page * PAGE_SIZE + idx + 1;
         const competency = safeNum(r.competency_score);
         const bonus = safeNum(r.preference_bonus);
         const finalScore = safeNum(r.final_score);
@@ -303,6 +305,18 @@ export default function RoleRecommendationsTable({
                     </Typography>
                   </Box>
                 )}
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    size="small"
+                    component={Link}
+                    to={`/planner?role_id=${r.role_id}`}
+                    startIcon={<CalendarMonth sx={{ fontSize: "15px !important" }} />}
+                  >
+                    Build a plan for this role
+                  </Button>
+                </Box>
               </Box>
             </Collapse>
           </Paper>

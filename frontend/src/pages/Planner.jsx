@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import {
   Box, Paper, Typography, Button, Alert, Chip, Tooltip,
@@ -72,6 +72,7 @@ export default function Planner() {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, planId: null });
   const [mySkillIds, setMySkillIds] = useState(new Set());
   const [completingId, setCompletingId] = useState(null);
+  const fromUrlRef = React.useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -81,6 +82,22 @@ export default function Planner() {
       } catch (e) { setErr(e.message); }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!roles.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const qRoleId = params.get("role_id");
+    if (qRoleId) {
+      fromUrlRef.current = true;
+      setRoleId(Number(qRoleId));
+    }
+  }, [roles]);
+
+  useEffect(() => {
+    if (!roleId || !fromUrlRef.current) return;
+    fromUrlRef.current = false;
+    generatePlan();
+  }, [roleId]);
 
   async function loadSaved() {
     setLoadingSaved(true);
@@ -140,7 +157,6 @@ export default function Planner() {
         method: "POST",
         body: JSON.stringify({ role_id: Number(roleId), weeks: Number(weeks), save: true }),
       });
-      setGapResult({ role: out.role, summary: out.gap.summary, items: out.gap.items });
       setPlanResult(out.plan);
       setSavedPlanId(out.saved_entry_id || null);
       setWeekIndex(0);
