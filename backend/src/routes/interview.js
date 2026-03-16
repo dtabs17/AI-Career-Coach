@@ -55,8 +55,8 @@ router.post("/sessions", requireAuth, async (req, res, next) => {
 
     const validModes = ["technical", "behavioral", "mixed"];
     if (!validModes.includes(mode)) {
-      return res.status(400).json({ 
-        error: `mode must be one of: ${validModes.join(", ")}` 
+      return res.status(400).json({
+        error: `mode must be one of: ${validModes.join(", ")}`
       });
     }
 
@@ -92,7 +92,7 @@ router.post("/sessions", requireAuth, async (req, res, next) => {
         previousTurns: [],
       });
 
-      
+
       const { rows: turnRows } = await client.query(
         `INSERT INTO interview_turns 
          (session_id, turn_number, question)
@@ -101,7 +101,7 @@ router.post("/sessions", requireAuth, async (req, res, next) => {
         [session.id, firstQuestion]
       );
 
-      
+
       await client.query(
         `UPDATE interview_sessions SET current_question_number = 1 WHERE id = $1`,
         [session.id]
@@ -140,7 +140,7 @@ router.get("/sessions/:id", requireAuth, async (req, res, next) => {
         return res.status(check.status).json({ error: check.error });
       }
 
-      
+
       const { rows: sessionRows } = await client.query(
         `SELECT 
           s.*, 
@@ -152,7 +152,7 @@ router.get("/sessions/:id", requireAuth, async (req, res, next) => {
         [sessionId]
       );
 
-      
+
       const { rows: turns } = await client.query(
         `SELECT * FROM interview_turns 
          WHERE session_id = $1 
@@ -283,7 +283,7 @@ router.post("/sessions/:id/answer", requireAuth, async (req, res, next) => {
           [currentTurnNumber + 1, sessionId]
         );
       } else {
-        
+
         const { rows: avgRows } = await client.query(
           `SELECT AVG(ai_rating) as avg_score 
            FROM interview_turns 
@@ -350,6 +350,48 @@ router.delete("/sessions/:id", requireAuth, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+router.get("/voices", requireAuth, async (req, res, next) => {
+  try {
+    const response = await fetch("https://api.elevenlabs.io/v1/voices", {
+      headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY },
+    });
+    const data = await response.json();
+    if (!data.voices) {
+      console.log("ElevenLabs voices error:", data);
+      return res.status(502).json({ error: "Failed to fetch voices from ElevenLabs" });
+    }
+    const voices = data.voices.map((v) => ({ voice_id: v.voice_id, name: v.name }));
+    res.json(voices);
+  } catch (err) { next(err); }
+});
+
+const INTERVIEW_VOICE_ID = "cjVigY5qzO86Huf0OWal";
+
+router.post("/tts", requireAuth, async (req, res, next) => {
+  try {
+    const { text } = req.body;
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${INTERVIEW_VOICE_ID}`, {
+      method: "POST",
+      headers: {
+        "xi-api-key": process.env.ELEVENLABS_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_turbo_v2_5",
+        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      return res.status(response.status).json({ error: errText });
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.send(buffer);
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

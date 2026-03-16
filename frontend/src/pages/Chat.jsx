@@ -8,16 +8,17 @@ import {
   Add, Send, Close, Edit, Check, Delete, ChatBubbleOutline, ContentCopy, Map, Description, QuestionAnswer, RocketLaunch,
 } from "@mui/icons-material";
 import AppIcon from "../components/AppIcon";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 function fmt(ts) {
   try { return new Date(ts).toLocaleString(); } catch { return ""; }
 }
 
 const emptyPrompts = [
-  { icon: <Map sx={{ fontSize: 16 }} />, label: "Build me a 4-week learning roadmap for backend development." },
-  { icon: <Description sx={{ fontSize: 16 }} />, label: "Review my CV bullets and rewrite them in a stronger way." },
-  { icon: <QuestionAnswer sx={{ fontSize: 16 }} />, label: "Give me 10 interview questions for a junior software developer." },
-  { icon: <RocketLaunch sx={{ fontSize: 16 }} />, label: "Based on my skills, what projects should I build next?" },
+  { icon: <Description sx={{ fontSize: 16 }} />, label: "Write a strong CV bullet point for one of my skills." },
+  { icon: <QuestionAnswer sx={{ fontSize: 16 }} />, label: "How do I talk about my skills confidently in an interview?" },
+  { icon: <Map sx={{ fontSize: 16 }} />, label: "What does a typical day look like for my top matched role?" },
+  { icon: <RocketLaunch sx={{ fontSize: 16 }} />, label: "What side projects would make my CV stand out for IT roles?" },
 ];
 
 function renderInline(text) {
@@ -320,13 +321,14 @@ function EmptyState({ onPrompt, coachContext }) {
 
   return (
     <Box sx={{
-      height: "100%",
+      minHeight: "100%",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
       px: 3,
-      py: 4,
+      pt: { xs: 14, sm: 4 },
+      pb: 4,
       textAlign: "center",
     }}>
       <Box sx={{
@@ -343,28 +345,14 @@ function EmptyState({ onPrompt, coachContext }) {
       </Typography>
 
       {contextPills.length > 0 && (
-        <Box sx={{ mb: 3.5, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-          <Typography sx={{
-            fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.07em",
-            textTransform: "uppercase", color: "rgba(241,240,255,0.28)",
-          }}>
-            Your coach already knows
-          </Typography>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, justifyContent: "center", maxWidth: 480 }}>
-            {contextPills.map(({ label }) => (
-              <Box key={label} sx={{
-                px: 1.25, py: 0.4,
-                borderRadius: "6px",
-                border: "1px solid rgba(245,158,11,0.25)",
-                bgcolor: "rgba(245,158,11,0.06)",
-              }}>
-                <Typography sx={{ fontSize: "0.775rem", color: "rgba(245,158,11,0.90)", fontWeight: 550 }}>
-                  {label}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        </Box>
+        <Typography sx={{
+          fontSize: "0.78rem",
+          color: "rgba(241,240,255,0.25)",
+          mb: 3.5,
+          fontStyle: "italic",
+        }}>
+          Your profile and skills are already loaded.
+        </Typography>
       )}
 
       <Box sx={{
@@ -426,6 +414,7 @@ export default function Chat() {
   const [renameText, setRenameText] = useState("");
   const renameRef = useRef(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, sessionId: null });
 
   const [coachContext, setCoachContext] = useState(null);
 
@@ -578,8 +567,6 @@ export default function Chat() {
   }
 
   async function deleteSession(sessionId) {
-    const ok = window.confirm("Delete this chat? This will remove the chat and all messages.");
-    if (!ok) return;
     setErr("");
     setDeletingId(sessionId);
     try {
@@ -598,6 +585,7 @@ export default function Chat() {
       else setErr(e.message);
     } finally {
       setDeletingId(null);
+      setConfirmDialog({ open: false, sessionId: null });
     }
   }
 
@@ -616,7 +604,7 @@ export default function Chat() {
         open={showSessions}
         onClose={() => setShowSessions(false)}
         sx={{
-          zIndex: 1400,
+          zIndex: 1200,
           "& .MuiDrawer-paper": {
             width: 280,
             bgcolor: "#0a090f",
@@ -713,7 +701,7 @@ export default function Chat() {
                         <Edit style={{ fontSize: 13 }} />
                       </button>
                       <button type="button" className="chat-session-delete"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteSession(s.id); }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDialog({ open: true, sessionId: s.id }); }}
                         aria-label="Delete" title="Delete" disabled={isDeleting}>
                         {isDeleting
                           ? <CircularProgress size={12} sx={{ color: "rgba(241,240,255,0.45)" }} />
@@ -728,7 +716,7 @@ export default function Chat() {
           </div>
         )}
       </Drawer>
-      
+
 
       <main className="chat-main" style={{ position: "relative" }}>
 
@@ -899,6 +887,14 @@ export default function Chat() {
           </Box>
         </Box>
       </main>
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title="Delete chat"
+        message="This chat and all its messages will be permanently deleted."
+        confirmLabel="Delete"
+        onConfirm={() => deleteSession(confirmDialog.sessionId)}
+        onCancel={() => setConfirmDialog({ open: false, sessionId: null })}
+      />
     </div>
   );
 }

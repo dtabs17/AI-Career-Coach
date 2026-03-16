@@ -125,22 +125,22 @@ async function evaluateAnswer({ question, answer, roleTitle, mode }) {
   const client = await getClient();
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-  const prompt = `You are evaluating a mock interview answer for the role: "${roleTitle}".
+  const prompt = `You are an expert interview coach evaluating a mock interview answer for the role: "${roleTitle}".
 
-Question: ${question}
+Question asked: ${question}
 
-Candidate's Answer: ${answer}
+Candidate's answer: ${answer}
 
-Evaluate this answer and provide:
-1. A rating from 1.0 to 5.0 (1=Poor, 2=Fair, 3=Good, 4=Very Good, 5=Excellent)
-2. Constructive feedback (2-3 sentences)
+Your role is not just to grade but to teach. Write feedback that genuinely helps the candidate improve. Your feedback must cover all four of these points in flowing prose (not bullet points or numbered lists):
 
-Consider:
-- Clarity and structure
-- Relevance to the question
-- Specific examples (if behavioral question)
-- Technical accuracy (if technical question)
-- Areas for improvement
+1. What worked: Briefly acknowledge any strong elements. If nothing was strong, skip this and move straight to the gaps.
+2. What was missing or weak: Be precise, not vague. Do not say "add more detail". Instead say exactly what detail was missing and why it matters for this specific question and role.
+3. A stronger answer would: Give a concise example of what a high-scoring answer to THIS specific question should have included. For behavioral questions, outline the key STAR beats a strong answer would hit. For technical questions, name the concepts, steps, or trade-offs that should have been mentioned.
+4. One takeaway: End with a single, immediately actionable tip for the next question.
+
+Rating scale: 1.0 = very poor, 2.0 = fair, 3.0 = adequate, 4.0 = strong, 5.0 = excellent.
+
+Write the feedback as a single natural paragraph between 100 and 160 words. Be direct and specific to this question. NEVER give generic advice that could apply to any answer.
 
 Respond in this exact JSON format:
 {

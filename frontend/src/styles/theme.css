@@ -11,7 +11,6 @@
 
   --accent: #f59e0b;
 
-
   --accent-2: #22c55e;
   --accent-3: #a78bfa;
 
@@ -33,7 +32,6 @@
 html,
 body,
 #root {
-  height: 100%;
   margin: 0;
 }
 
@@ -53,9 +51,6 @@ body {
   background: transparent;
   min-height: 100%;
 }
-
-
-
 
 body::before {
   content: "";
@@ -123,6 +118,12 @@ body::after {
   grid-template-columns: var(--dash-sidebar-w) 1fr;
 }
 
+html:has(.dash-shell),
+body:has(.dash-shell),
+body:has(.dash-shell)>#root {
+  height: 100%;
+}
+
 body:has(.dash-shell) {
   height: 100vh;
   overflow: hidden;
@@ -154,7 +155,7 @@ body:has(.dash-shell)::before {
 
 .dash-topbar {
   background: rgba(11, 10, 16, 0.90);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.025);
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -208,6 +209,32 @@ body:has(.dash-shell)::before {
     min-height: 0;
   }
 
+body:has(.chat-shell) {
+    overflow: hidden;
+    height: 100dvh;
+  }
+
+  body:has(.chat-shell) .dash-shell {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+body:has(.chat-shell) .dash-main {
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: var(--dash-topbar-h) minmax(0, 1fr);
+  }
+
+  body:has(.chat-shell) .dash-content {
+    overflow: hidden;
+    height: calc(100dvh - var(--dash-topbar-h));
+    padding: 0;
+  }
+
+  body:has(.chat-shell) .dash-content .chat-shell {
+    height: 100%;
+  }
+
   .dash-sidebar {
     display: none;
   }
@@ -239,18 +266,18 @@ body:has(.public-shell)::before {
 }
 
 .public-topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 5000;
-  background: rgba(11, 10, 16, 0.90);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(16px);
+  background: #0b0a10;
+  border-bottom: none;
+  backdrop-filter: none;
 }
 
 .public-topbar-inner {
   height: var(--dash-topbar-h);
-  max-width: 1100px;
-  margin: 0 auto;
   padding: 0 24px;
   display: flex;
   align-items: center;
@@ -287,7 +314,7 @@ body:has(.public-shell)::before {
 .public-content {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 24px;
+  padding: calc(var(--dash-topbar-h) + 24px) 24px 24px;
 }
 
 .public-link {
@@ -325,11 +352,11 @@ body:has(.public-shell)::before {
 }
 
 .auth-in-public {
-  min-height: calc(100vh - var(--dash-topbar-h));
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding-top: var(--dash-topbar-h);
   overflow: hidden;
 }
 
@@ -399,9 +426,6 @@ body:has(.auth-in-public) {
   border-color: rgba(34, 197, 94, 0.15) !important;
   color: rgba(190, 255, 214, 0.88) !important;
 }
-
-
-
 
 .topbar-row {
   width: 100%;
@@ -702,7 +726,7 @@ body:has(.auth-in-public) {
 }
 
 .chat-body {
-  padding: 16px 20px;
+  padding: 16px 20px 80px;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }

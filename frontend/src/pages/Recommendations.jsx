@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import { api } from "../api/client";
 import RoleRecommendationsTable from "../components/RoleRecommendationsTable";
 import {
@@ -60,6 +61,7 @@ export default function Recommendations() {
 
   const navigate = useNavigate();
   const showToast = useToast();
+  const { user } = useAuth();
 
   async function runNow() {
     setErr("");
@@ -72,6 +74,9 @@ export default function Recommendations() {
       setRun(data.run);
       setViews(data.views || null);
       setExecutedAt(data.executed_at || null);
+      if (user?.id) {
+        localStorage.setItem(`last_run_clicked_${user.id}`, new Date().toISOString());
+      }
       showToast("Recommendations ready.");
     } catch (e) {
       if (e.status === 401) navigate("/login");

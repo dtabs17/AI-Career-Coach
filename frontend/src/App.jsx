@@ -21,6 +21,7 @@ import Planner from "./pages/Planner.jsx";
 import Interviews from "./pages/Interviews.jsx";
 import { useAuth } from "./auth/AuthContext";
 import NotFound from "./pages/NotFound.jsx";
+import SplashScreen from "./components/SplashScreen.jsx";
 
 
 
@@ -55,12 +56,13 @@ function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isAuthRoute = pathname === "/login" || pathname === "/register";
+  const isHome = pathname === "/";
 
   if (!isAuthed) {
     return (
       <div className="public-shell">
         <PublicTopNav />
-        <main className={isAuthRoute ? "public-content auth-in-public" : "public-content"}>
+        <main className={isAuthRoute ? "public-content auth-in-public" : isHome ? "" : "public-content"}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/skills" element={<Skills />} />
@@ -103,9 +105,11 @@ function AppLayout() {
 }
 
 export default function App() {
+  const [splashDone, setSplashDone] = useState(false);
   return (
     <BrowserRouter>
       <ThemeProvider theme={appTheme}>
+        {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
         <AppLayout />
       </ThemeProvider>
     </BrowserRouter>

@@ -10,17 +10,25 @@ import {
 } from "@mui/material";
 import {
   PlayArrow, Pause, Stop, Mic, MicOff, Delete,
-  Visibility, CheckCircle, AccessTime, EmojiEvents,
+  Visibility, CheckCircle, AccessTime, EmojiEvents, Badge,
 } from "@mui/icons-material";
 import { useToast } from "../toast/ToastContext";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 
+/* ── Keyframes ─────────────────────────────────── */
 const pulseAnim = keyframes`
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
 `;
 
+const barAnim = keyframes`
+  0%, 100% { transform: scaleY(0.30); }
+  50%       { transform: scaleY(1.0); }
+`;
+
+
+/* ── Helpers ────────────────────────────────────── */
 function fmt(ts) {
   try { return new Date(ts).toLocaleString(); } catch { return ""; }
 }
@@ -33,13 +41,11 @@ function getRatingLabel(rating) {
   return "Needs Improvement";
 }
 
-
 function getRatingChipSx(rating) {
   if (rating >= 4.5) return { bgcolor: "rgba(34,197,94,0.12)", color: "#86efac", border: "1px solid rgba(34,197,94,0.22)" };
   if (rating >= 2.5) return { bgcolor: "rgba(245,158,11,0.12)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.22)" };
   return { bgcolor: "rgba(239,68,68,0.12)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.22)" };
 }
-
 
 const modeChipSx = {
   bgcolor: "rgba(255,255,255,0.06)",
@@ -56,6 +62,35 @@ const sectionLabel = {
   mb: 1,
 };
 
+
+/* ── Waveform ───────────────────────────────────── */
+function Waveform({ active }) {
+  const bars = [55, 100, 68, 90, 48, 82, 60, 95, 62];
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: "2.5px", height: 16, flexShrink: 0 }}>
+      {bars.map((h, i) => (
+        <Box
+          key={i}
+          sx={{
+            width: 3,
+            height: `${h}%`,
+            borderRadius: 999,
+            bgcolor: active ? "#f59e0b" : "rgba(245,158,11,0.18)",
+            transformOrigin: "center",
+            transition: "background-color 350ms ease",
+            animation: active
+              ? `${barAnim} ${0.58 + i * 0.07}s ease-in-out infinite`
+              : "none",
+            animationDelay: active ? `${i * 0.06}s` : "0s",
+          }}
+        />
+      ))}
+    </Box>
+  );
+}
+
+
+/* ── Main component ─────────────────────────────── */
 export default function Interviews() {
   const navigate = useNavigate();
   const showToast = useToast();
@@ -80,17 +115,17 @@ export default function Interviews() {
   const [reviewSession, setReviewSession] = useState(null);
 
   const recognitionRef = useRef(null);
-  const charIndexRef = useRef(0);
-  const currentQuestionRef = useRef("");
+  const audioRef = useRef(null);
 
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
-  const [ttsPaused, setTtsPaused] = useState(false);
   const [ttsSpeaking, setTtsSpeaking] = useState(false);
-  const [voices, setVoices] = useState([]);
-  const [selectedVoiceName, setSelectedVoiceName] = useState("");
+  const [ttsPaused, setTtsPaused] = useState(false);
+  const [ttsLoading, setTtsLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, sessionId: null });
 
+
+  /* ── Effects ── */
   useEffect(() => {
     loadSessions();
     loadRoles();
@@ -114,46 +149,76 @@ export default function Interviews() {
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SR) setVoiceSupported(true);
-    function loadVoices() {
-      const v = window.speechSynthesis.getVoices();
-      if (v.length) setVoices(v);
-    }
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
     return () => {
       recognitionRef.current?.abort();
-      window.speechSynthesis?.cancel();
-      window.speechSynthesis.onvoiceschanged = null;
+      stopTts();
     };
   }, []);
 
-  function speakFrom(text, fromChar) {
-    window.speechSynthesis?.cancel();
-    const slice = text.slice(fromChar);
-    if (!slice.trim()) return;
-    const utt = new SpeechSynthesisUtterance(slice);
-    utt.rate = 0.9;
-    utt.pitch = 1.05;
-    const allVoices = window.speechSynthesis.getVoices();
-    const chosen = selectedVoiceName
-      ? allVoices.find((v) => v.name === selectedVoiceName)
-      : allVoices.find((v) => /google|natural|enhanced|samantha|karen|daniel/i.test(v.name));
-    if (chosen) utt.voice = chosen;
-    utt.onboundary = (e) => { charIndexRef.current = fromChar + e.charIndex; };
-    utt.onend = () => { setTtsPaused(false); setTtsSpeaking(false); };
-    setTtsSpeaking(true);
-    window.speechSynthesis?.speak(utt);
-  }
-
   useEffect(() => {
     if (!currentTurn?.question) return;
-    charIndexRef.current = 0;
-    currentQuestionRef.current = currentTurn.question;
-    setTtsPaused(false);
-    setTtsSpeaking(false);
-    speakFrom(currentTurn.question, 0);
-  }, [currentTurn?.id, selectedVoiceName]);
+    const timer = setTimeout(() => { speakQuestion(currentTurn.question); }, 700);
+    return () => clearTimeout(timer);
+  }, [currentTurn?.id]);
 
+
+  /* ── TTS ── */
+  function stopTts() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+    setTtsSpeaking(false);
+    setTtsPaused(false);
+  }
+
+  function pauseTts() {
+    if (audioRef.current && !audioRef.current.paused) {
+      audioRef.current.pause();
+      setTtsSpeaking(false);
+      setTtsPaused(true);
+    }
+  }
+
+  function resumeTts() {
+    if (audioRef.current && audioRef.current.paused) {
+      audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 1.2);
+      audioRef.current.play();
+      setTtsPaused(false);
+      setTtsSpeaking(true);
+    }
+  }
+
+  async function speakQuestion(text) {
+    stopTts();
+    setTtsLoading(true);
+    try {
+      const res = await fetch("/api/interviews/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ text, voice_id: "cjVigY5qzO86Huf0OWal" }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onplay  = () => { setTtsSpeaking(true);  setTtsPaused(false); };
+      audio.onpause = () => { if (!audio.ended) { setTtsSpeaking(false); setTtsPaused(true); } };
+      audio.onended = () => { setTtsSpeaking(false); setTtsPaused(false); URL.revokeObjectURL(url); };
+      audio.onerror = () => { setTtsSpeaking(false); setTtsPaused(false); };
+      audio.play();
+    } catch {
+      setTtsLoading(false);
+    } finally {
+      setTtsLoading(false);
+    }
+  }
+
+
+  /* ── Voice input ── */
   function toggleVoice() {
     if (isListening) { recognitionRef.current?.stop(); return; }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -170,12 +235,14 @@ export default function Interviews() {
       setAnswer((prev) => (prev ? prev + " " + transcript : transcript).trim());
     };
     recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
+    recognition.onend   = () => setIsListening(false);
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
   }
 
+
+  /* ── Data ── */
   async function loadSessions() {
     setLoading(true); setErr("");
     try {
@@ -217,7 +284,7 @@ export default function Interviews() {
   async function submitAnswer() {
     if (!answer.trim()) { setErr("Please provide an answer"); return; }
     if (isListening) { recognitionRef.current?.stop(); setIsListening(false); }
-    window.speechSynthesis?.cancel();
+    stopTts();
     setSubmitting(true); setErr("");
     try {
       const result = await api(`/api/interviews/sessions/${activeSession.id}/answer`, {
@@ -254,7 +321,6 @@ export default function Interviews() {
       const data = await api(`/api/interviews/sessions/${sessionId}`);
       const session = data.session;
       const turns = data.turns || [];
-
       if (session.status === "in_progress") {
         const answeredTurns = turns.filter((t) => t.user_answer);
         const currentTurn = turns.find((t) => t.turn_number === session.current_question_number);
@@ -292,38 +358,40 @@ export default function Interviews() {
   }
 
   function backToList() {
-    setActiveSession(null); setCurrentTurn(null);
-    setAllTurns([]); setReviewSession(null);
+    setActiveSession(null);
+    setCurrentTurn(null);
+    setAllTurns([]);
+    setReviewSession(null);
     loadSessions();
   }
 
 
-
+  /* ═══════════════════════════════════════════════
+     ACTIVE INTERVIEW VIEW
+  ═══════════════════════════════════════════════ */
   if (activeSession && currentTurn) {
     const isCompleted = currentTurn._justCompleted || !currentTurn.question;
     const answeredTurns = allTurns.filter((t) => t.user_answer);
     const currentQuestionNum = activeSession.current_question_number;
 
+
+    /* ── Completion screen ── */
     if (isCompleted) {
       const avgScore = answeredTurns.reduce((sum, t) => sum + (t.ai_rating || 0), 0) / answeredTurns.length;
       const strongTurns = answeredTurns.filter((t) => t.ai_rating >= 4.0);
-      const weakTurns = answeredTurns.filter((t) => t.ai_rating < 3.5);
+      const weakTurns   = answeredTurns.filter((t) => t.ai_rating  < 3.5);
 
       return (
         <Box className="page-content">
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 4 }}>
             <EmojiEvents sx={{ fontSize: 32, color: "#f59e0b" }} />
-            <Typography variant="h4">Interview Complete</Typography>
+            <Typography variant="h4">Interview complete</Typography>
           </Box>
 
           <Paper sx={{ p: 3.5, mb: 3 }}>
             <Typography sx={{ ...sectionLabel }}>Overall score</Typography>
             <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, mb: 2 }}>
-
-              <Typography sx={{
-                fontSize: 52, fontWeight: 800, lineHeight: 1,
-                color: "#f59e0b",
-              }}>
+              <Typography sx={{ fontSize: 52, fontWeight: 800, lineHeight: 1, color: "#f59e0b" }}>
                 {avgScore.toFixed(1)}
               </Typography>
               <Typography sx={{ color: "text.secondary", fontSize: 22, fontWeight: 600 }}>/5.0</Typography>
@@ -332,7 +400,7 @@ export default function Interviews() {
             <LinearProgress variant="determinate" value={(avgScore / 5) * 100} sx={{ mb: 3 }} />
             <Divider sx={{ mb: 3 }} />
 
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 3 }}>
               <Box>
                 <Typography variant="body2" sx={{ color: "#86efac", fontWeight: 700, mb: 1.5 }}>Strengths</Typography>
                 {strongTurns.length > 0 ? strongTurns.map((t, i) => (
@@ -358,7 +426,7 @@ export default function Interviews() {
               </Box>
             </Box>
 
-            <Box sx={{ display: "flex", gap: 2, mt: 3.5 }}>
+            <Box sx={{ display: "flex", gap: 2, mt: 3.5, flexWrap: "wrap" }}>
               <Button variant="contained" onClick={backToList}>Back to interviews</Button>
               <Button variant="outlined" color="secondary" onClick={() => setShowNewForm(true)}>Start another</Button>
             </Box>
@@ -384,171 +452,435 @@ export default function Interviews() {
       );
     }
 
+
+    /* ── Active question screen ── */
     const showFeedback = currentTurn.user_answer && currentTurn.ai_feedback;
-    const progress = ((currentQuestionNum - 1) / activeSession.total_questions) * 100;
 
     return (
       <Box className="page-content">
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3 }}>
-          <Box>
-            <Typography variant="h4">Mock Interview</Typography>
-            <Box sx={{ display: "flex", gap: 1, mt: 1, flexWrap: "wrap" }}>
-              <Chip label={activeSession.role_title} size="small" sx={modeChipSx} />
-              <Chip label={activeSession.mode} size="small" sx={modeChipSx} />
-            </Box>
-          </Box>
-          <Button
-            variant="outlined"
-            color="secondary"
-            size="small"
-            onClick={backToList}
-            sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
-          >
-            Exit interview
-          </Button>
-        </Box>
 
-        {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
+        {/* ── Interview card: topbar + split panels ── */}
+        <Paper sx={{ p: 0, overflow: "hidden" }}>
 
-        <Paper sx={{ p: 2.5, mb: 3 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1.5 }}>
-            <Typography variant="body2" sx={{ fontWeight: 650 }}>Question {currentQuestionNum} of {activeSession.total_questions}</Typography>
-            <Typography variant="body2" sx={{ color: "text.secondary" }}>{Math.round(progress)}% complete</Typography>
-          </Box>
-          <LinearProgress variant="determinate" value={progress} />
-        </Paper>
-
-        {!showFeedback ? (
-          <Paper sx={{ p: 3.5, mb: 3 }}>
-            <Typography sx={{ ...sectionLabel }}>Question</Typography>
-            <Typography variant="h6" sx={{ mb: 3, lineHeight: 1.65 }}>{currentTurn.question}</Typography>
-
+          {/* ── Top bar ── */}
+          <Box sx={{
+            px: { xs: 2, sm: 2.5 },
+            pt: { xs: 1.5, sm: 1.75 },
+            pb: 0,
+            bgcolor: "rgba(11,10,16,0.97)",
+          }}>
             <Box sx={{
-              display: "flex", alignItems: "center", gap: 1, mb: 3, px: 2, py: 1.5,
-              bgcolor: "rgba(255,255,255,0.025)", borderRadius: "8px",
-              border: "1px solid rgba(255,255,255,0.06)", flexWrap: "wrap",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 1.25,
             }}>
-              <Typography variant="caption" sx={{ color: "text.secondary", mr: 0.5 }}>Read aloud</Typography>
-              {!ttsSpeaking && !ttsPaused ? (
-                <Tooltip title="Play question" arrow>
-                  <IconButton size="small" onClick={() => { charIndexRef.current = 0; speakFrom(currentQuestionRef.current, 0); }}>
-                    <PlayArrow fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              ) : (
-                <>
-                  <Tooltip title={ttsPaused ? "Resume" : "Pause"} arrow>
-                    <IconButton size="small" onClick={() => {
-                      if (ttsPaused) { speakFrom(currentQuestionRef.current, Math.max(0, charIndexRef.current - 25)); setTtsPaused(false); }
-                      else { window.speechSynthesis?.pause(); setTtsPaused(true); }
-                    }}>
-                      {ttsPaused ? <PlayArrow fontSize="small" /> : <Pause fontSize="small" />}
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Stop" arrow>
-                    <IconButton size="small" onClick={() => { window.speechSynthesis?.cancel(); setTtsPaused(false); setTtsSpeaking(false); }}>
-                      <Stop fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </>
+              {/* Left: role + mode chips */}
+              <Box sx={{ display: "flex", gap: 0.75, alignItems: "center", flex: 1, minWidth: 0, overflow: "hidden" }}>
+                <Chip
+                  label={activeSession.role_title}
+                  size="small"
+                  sx={{
+                    ...modeChipSx,
+                    maxWidth: { xs: 110, sm: 200, md: "none" },
+                    "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+                  }}
+                />
+                <Chip label={activeSession.mode} size="small" sx={modeChipSx} />
+              </Box>
+
+              {/* Centre: Q counter — flex trick keeps it centred without absolute */}
+              <Typography sx={{
+                fontSize: "0.68rem",
+                fontWeight: 700,
+                color: "rgba(241,240,255,0.30)",
+                letterSpacing: "0.10em",
+                textTransform: "uppercase",
+                flexShrink: 0,
+                mx: { xs: 1, sm: 2 },
+              }}>
+                Q {currentQuestionNum} / {activeSession.total_questions}
+              </Typography>
+
+              {/* Right: exit */}
+              <Box sx={{ display: "flex", justifyContent: "flex-end", flex: 1 }}>
+                <Button variant="outlined" color="secondary" size="small" onClick={backToList}>
+                  Exit
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Full-width progress bar flush to the bottom of the topbar */}
+            <LinearProgress
+              variant="determinate"
+              value={((currentQuestionNum - 1) / activeSession.total_questions) * 100}
+              sx={{
+                height: 2,
+                borderRadius: 0,
+                bgcolor: "rgba(255,255,255,0.05)",
+                "& .MuiLinearProgress-bar": {
+                  background: "linear-gradient(90deg, #f59e0b, #fb923c)",
+                  borderRadius: 0,
+                },
+              }}
+            />
+          </Box>
+
+          {err && (
+            <Alert severity="error" sx={{ mx: { xs: 2, sm: 2.5 }, mt: 1.5 }}>{err}</Alert>
+          )}
+
+          {/* ── Two-column split: stacks to one column on mobile ── */}
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+            minHeight: { md: 430 },
+          }}>
+
+            {/* ══ LEFT PANEL — question ══ */}
+            <Box sx={{
+              p: { xs: "20px 20px 22px", sm: "26px 28px 24px" },
+              bgcolor: "rgba(14,13,22,0.98)",
+              borderRight: { md: "1px solid rgba(255,255,255,0.06)" },
+              borderBottom: { xs: "1px solid rgba(255,255,255,0.07)", md: "none" },
+              display: "flex",
+              flexDirection: "column",
+              position: "relative",
+            }}>
+
+              {/* Animated amber accent strip at top of left panel */}
+              <Box sx={{
+                position: "absolute",
+                top: 0, left: 0, right: 0,
+                height: 2,
+                background: "linear-gradient(90deg, #f59e0b 0%, rgba(251,146,60,0.55) 55%, transparent 100%)",
+                opacity: ttsSpeaking ? 1 : 0.28,
+                transition: "opacity 400ms ease",
+              }} />
+
+              {/* Interviewer header row */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: { xs: 2, md: 2.5 } }}>
+                {/* Avatar */}
+                <Box sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, rgba(245,158,11,0.90), rgba(251,146,60,0.80))",
+                  display: "grid",
+                  placeItems: "center",
+                  flexShrink: 0,
+                  boxShadow: ttsSpeaking
+                    ? "0 0 0 3px rgba(245,158,11,0.18), 0 4px 16px rgba(245,158,11,0.22)"
+                    : "0 2px 10px rgba(0,0,0,0.40)",
+                  transition: "box-shadow 400ms ease",
+                }}>
+                  <Badge sx={{ fontSize: 18, color: "#1a1a1a" }} />
+                </Box>
+
+                {/* Name + speaking status */}
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: "0.78rem", fontWeight: 700, color: "rgba(241,240,255,0.80)", lineHeight: 1.2 }}>
+                    AI Interviewer
+                  </Typography>
+                  <Typography sx={{
+                    fontSize: "0.695rem",
+                    fontWeight: 600,
+                    mt: 0.3,
+                    color: ttsSpeaking
+                      ? "#f59e0b"
+                      : ttsPaused
+                        ? "rgba(245,158,11,0.50)"
+                        : "rgba(241,240,255,0.30)",
+                    transition: "color 350ms ease",
+                  }}>
+                    {ttsSpeaking ? "Speaking..." : ttsPaused ? "Paused" : "Ready"}
+                  </Typography>
+                </Box>
+
+                {/* Waveform animation */}
+                <Waveform active={ttsSpeaking} />
+              </Box>
+
+              {/* Question label */}
+              <Typography sx={{ ...sectionLabel, mb: { xs: 1, md: 1.25 } }}>Question</Typography>
+
+              {/* Question text — grows to fill available space on desktop */}
+              <Typography sx={{
+                fontSize: { xs: "0.975rem", sm: "1.05rem" },
+                fontWeight: 520,
+                lineHeight: 1.85,
+                color: "#f1f0ff",
+                letterSpacing: "-0.01em",
+                flex: 1,
+              }}>
+                {currentTurn.question}
+              </Typography>
+
+              {/* Feedback state only: show the user's submitted answer on the left
+                  so they can read question + their answer together while seeing feedback */}
+              {showFeedback && currentTurn.user_answer && (
+                <Box sx={{
+                  mt: { xs: 2, md: 2.5 },
+                  p: { xs: "12px 14px", sm: "14px 16px" },
+                  borderRadius: "8px",
+                  bgcolor: "rgba(255,255,255,0.025)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}>
+                  <Typography sx={{ ...sectionLabel, mb: 0.75 }}>Your answer</Typography>
+                  <Typography variant="body2" sx={{ color: "rgba(241,240,255,0.45)", lineHeight: 1.65 }}>
+                    {currentTurn.user_answer.slice(0, 180)}
+                    {currentTurn.user_answer.length > 180 && "..."}
+                  </Typography>
+                </Box>
               )}
-              {voices.length > 0 && (
-                <Box sx={{ display: { xs: "none", sm: "contents" } }}>
-                  <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-                  <FormControl size="small" sx={{ minWidth: 190 }}>
-                    <Select
-                      value={selectedVoiceName}
-                      onChange={(e) => setSelectedVoiceName(e.target.value)}
-                      displayEmpty
-                      sx={{ fontSize: "0.78rem", height: 32, ".MuiSelect-select": { py: 0.5 } }}
-                    >
-                      <MenuItem value=""><em style={{ color: "rgba(241,240,255,0.38)", fontStyle: "normal" }}>Default voice</em></MenuItem>
-                      {voices.map((v) => (
-                        <MenuItem key={v.name} value={v.name}>
-                          {v.name}
-                          <Typography component="span" variant="caption" sx={{ ml: 0.5, color: "text.secondary" }}>({v.lang})</Typography>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+
+              {/* TTS controls — only shown in answering state */}
+              {!showFeedback && (
+                <Box sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  mt: { xs: 2, md: 2.5 },
+                  pt: { xs: 1.75, md: 2 },
+                  borderTop: "1px solid rgba(255,255,255,0.05)",
+                }}>
+                  {ttsLoading ? (
+                    <CircularProgress size={13} sx={{ color: "rgba(241,240,255,0.28)", mx: 0.75 }} />
+                  ) : (
+                    <>
+                      {!ttsSpeaking && !ttsPaused && (
+                        <Tooltip title="Replay question" arrow>
+                          <IconButton
+                            size="small"
+                            onClick={() => speakQuestion(currentTurn.question)}
+                            sx={{ color: "rgba(241,240,255,0.32)", "&:hover": { color: "rgba(241,240,255,0.80)" } }}
+                          >
+                            <PlayArrow sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {ttsSpeaking && (
+                        <>
+                          <Tooltip title="Pause" arrow>
+                            <IconButton size="small" onClick={pauseTts}>
+                              <Pause sx={{ fontSize: 15 }} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Stop" arrow>
+                            <IconButton size="small" onClick={stopTts}>
+                              <Stop sx={{ fontSize: 15 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </>
+                      )}
+                      {ttsPaused && (
+                        <>
+                          <Tooltip title="Resume (rewinds ~1s)" arrow>
+                            <IconButton size="small" onClick={resumeTts} sx={{ color: "#f59e0b", "&:hover": { color: "#fbbf24" } }}>
+                              <PlayArrow sx={{ fontSize: 15 }} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Stop" arrow>
+                            <IconButton size="small" onClick={stopTts}>
+                              <Stop sx={{ fontSize: 15 }} />
+                            </IconButton>
+                          </Tooltip>
+                        </>
+                      )}
+                    </>
+                  )}
+                  <Typography variant="caption" sx={{ color: "rgba(241,240,255,0.18)", ml: 0.5 }}>
+                    {ttsSpeaking ? "Playing audio" : ttsPaused ? "Audio paused" : "Replay question audio"}
+                  </Typography>
                 </Box>
               )}
             </Box>
 
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-              <Typography sx={{ ...sectionLabel, mb: 0 }}>Your answer</Typography>
-              {voiceSupported && (
-                <Tooltip title={isListening ? "Stop recording" : "Speak your answer"} arrow>
-                  <IconButton size="small" onClick={toggleVoice} disabled={submitting} sx={isListening ? {
-                    bgcolor: "rgba(239,68,68,0.15) !important", color: "#fca5a5 !important",
-                    borderColor: "rgba(239,68,68,0.3) !important", animation: `${pulseAnim} 1.4s ease infinite`,
-                  } : {}}>
-                    {isListening ? <MicOff fontSize="small" /> : <Mic fontSize="small" />}
-                  </IconButton>
-                </Tooltip>
-              )}
-            </Box>
 
-            {isListening && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-                <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "#ef4444", animation: `${pulseAnim} 1s ease infinite`, flexShrink: 0 }} />
-                <Typography variant="caption" sx={{ color: "#fca5a5" }}>Listening... speak your answer, then click the mic to stop.</Typography>
+            {/* ══ RIGHT PANEL — answer input or feedback ══ */}
+            {!showFeedback ? (
+
+              /* ── Answering panel ── */
+              <Box sx={{
+                p: { xs: "20px 20px 22px", sm: "26px 28px 24px" },
+                bgcolor: "#0c0b0f",
+                display: "flex",
+                flexDirection: "column",
+              }}>
+                {/* Header row */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: { xs: 2, md: 2.5 } }}>
+                  <Typography sx={{ ...sectionLabel, mb: 0 }}>
+                    {isListening ? "Transcript" : "Your response"}
+                  </Typography>
+                  {answer && (
+                    <Typography variant="caption" sx={{ color: "rgba(241,240,255,0.22)" }}>
+                      {answer.trim().split(/\s+/).length} words
+                    </Typography>
+                  )}
+                </Box>
+
+                {/* Mic button */}
+                {voiceSupported && (
+                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: { xs: 2, md: 2.5 } }}>
+                    <Box
+                      onClick={() => !submitting && toggleVoice()}
+                      sx={{
+                        width: { xs: 58, md: 64 },
+                        height: { xs: 58, md: 64 },
+                        borderRadius: "50%",
+                        display: "grid",
+                        placeItems: "center",
+                        cursor: submitting ? "default" : "pointer",
+                        bgcolor: isListening ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.08)",
+                        border: isListening
+                          ? "2px solid rgba(239,68,68,0.48)"
+                          : "2px solid rgba(245,158,11,0.28)",
+                        boxShadow: isListening ? "0 0 0 8px rgba(239,68,68,0.07)" : "none",
+                        transition: "all 200ms ease",
+                        animation: isListening ? `${pulseAnim} 1.4s ease infinite` : "none",
+                        "&:hover": submitting ? {} : {
+                          bgcolor: isListening ? "rgba(239,68,68,0.20)" : "rgba(245,158,11,0.14)",
+                          boxShadow: isListening
+                            ? "0 0 0 12px rgba(239,68,68,0.05)"
+                            : "0 0 0 12px rgba(245,158,11,0.05)",
+                        },
+                      }}
+                    >
+                      {isListening
+                        ? <MicOff sx={{ fontSize: { xs: 24, md: 26 }, color: "#fca5a5" }} />
+                        : <Mic    sx={{ fontSize: { xs: 24, md: 26 }, color: "#f59e0b" }} />
+                      }
+                    </Box>
+                    <Typography variant="caption" sx={{
+                      mt: 1,
+                      color: isListening ? "#fca5a5" : "rgba(241,240,255,0.30)",
+                      fontWeight: 600,
+                      letterSpacing: "0.04em",
+                    }}>
+                      {isListening ? "Listening — tap to stop" : "Tap to speak"}
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* Answer textarea */}
+                <TextField
+                  multiline
+                  rows={voiceSupported ? 5 : 8}
+                  fullWidth
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  placeholder={
+                    voiceSupported
+                      ? "Your spoken answer will appear here. You can also type directly."
+                      : "Type your answer here..."
+                  }
+                  disabled={submitting}
+                  sx={{
+                    flex: 1,
+                    mb: 2,
+                    "& .MuiInputBase-root": { fontSize: "0.9rem", lineHeight: 1.7 },
+                  }}
+                />
+
+                {/* Submit */}
+                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={submitAnswer}
+                    disabled={submitting || !answer.trim()}
+                    startIcon={submitting ? <CircularProgress size={16} sx={{ color: "rgba(0,0,0,0.50)" }} /> : null}
+                    sx={{ px: 5, py: 1.25 }}
+                  >
+                    {submitting ? "Submitting..." : "Submit answer"}
+                  </Button>
+                </Box>
+              </Box>
+
+            ) : (
+
+              /* ── Feedback panel ── */
+              <Box sx={{
+                p: { xs: "20px 20px 22px", sm: "26px 28px 24px" },
+                bgcolor: "#0c0b0f",
+                display: "flex",
+                flexDirection: "column",
+              }}>
+                {/* Header */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 2.5, flexWrap: "wrap" }}>
+                  <CheckCircle sx={{ color: "#86efac", fontSize: 19 }} />
+                  <Typography sx={{ fontWeight: 700, fontSize: "0.92rem" }}>Answer received</Typography>
+                  <Chip
+                    label={`${currentTurn.ai_rating}/5.0 — ${getRatingLabel(currentTurn.ai_rating)}`}
+                    sx={{ ...getRatingChipSx(currentTurn.ai_rating), ml: { xs: 0, sm: "auto" } }}
+                  />
+                </Box>
+
+                {/* Feedback text */}
+                <Typography variant="body2" sx={{
+                  color: "rgba(241,240,255,0.55)",
+                  lineHeight: 1.85,
+                  flex: 1,
+                }}>
+                  {currentTurn.ai_feedback}
+                </Typography>
+
+                {/* Next question */}
+                <Box sx={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  mt: { xs: 2.5, md: 3 },
+                  pt: { xs: 2, md: 2.5 },
+                  borderTop: "1px solid rgba(255,255,255,0.05)",
+                }}>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    sx={{ px: 5 }}
+                    onClick={() => {
+                      setCurrentTurn(pendingNextTurn);
+                      setActiveSession((prev) => ({ ...prev, current_question_number: pendingNextTurn.turn_number }));
+                      setPendingNextTurn(null);
+                    }}
+                  >
+                    Next question
+                  </Button>
+                </Box>
               </Box>
             )}
+          </Box>
+        </Paper>
 
-            <TextField
-              multiline rows={8} fullWidth value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Type your answer here, or use the mic button to speak... (2–3 paragraphs recommended)"
-              disabled={submitting}
-            />
-
-            <Button
-              variant="contained"
-              sx={{ mt: 2.5 }}
-              onClick={submitAnswer}
-              disabled={submitting || !answer.trim()}
-              startIcon={submitting ? <CircularProgress size={15} sx={{ color: "rgba(0,0,0,0.50)" }} /> : null}
-            >
-              {submitting ? "Submitting..." : "Submit answer"}
-            </Button>
-          </Paper>
-        ) : (
-          <Paper sx={{ p: 3.5, mb: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}>
-              <CheckCircle sx={{ color: "#86efac", fontSize: 20 }} />
-              <Typography variant="h6">Answer submitted</Typography>
-            </Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}>
-              <Typography variant="body2" sx={{ color: "text.secondary" }}>Rating</Typography>
-              <Chip label={`${currentTurn.ai_rating}/5.0 — ${getRatingLabel(currentTurn.ai_rating)}`} sx={getRatingChipSx(currentTurn.ai_rating)} />
-            </Box>
-            <Box sx={{ p: 2, mb: 3, borderRadius: "8px", bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-              <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Feedback</Typography>
-              <Typography variant="body2" sx={{ mt: 0.5 }}>{currentTurn.ai_feedback}</Typography>
-            </Box>
-            <Button variant="contained" onClick={() => {
-              setCurrentTurn(pendingNextTurn);
-              setActiveSession((prev) => ({ ...prev, current_question_number: pendingNextTurn.turn_number }));
-              setPendingNextTurn(null);
-            }}>
-              Next question
-            </Button>
-          </Paper>
-        )}
-
+        {/* ── Previous answers (subtle history below the main card) ── */}
         {allTurns.filter((t) => t.user_answer && t.id !== currentTurn.id).length > 0 && (
-          <Box sx={{ mt: 4 }}>
-            <Typography sx={{ ...sectionLabel }}>Previous questions</Typography>
+          <Box sx={{ mt: 5, pt: 3.5, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+            <Typography sx={{ ...sectionLabel, mb: 2 }}>Previous answers</Typography>
             {allTurns.filter((t) => t.user_answer && t.id !== currentTurn.id).map((turn) => (
-              <Paper key={turn.id} sx={{ p: 2.5, mb: 2, opacity: 0.72 }}>
-                <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Q{turn.turn_number}</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5, mb: 1.5 }}>{turn.question}</Typography>
-                <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.5 }}>
-                  {turn.user_answer.slice(0, 150)}{turn.user_answer.length > 150 && "..."}
+              <Box key={turn.id} sx={{
+                py: 2,
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                display: "flex",
+                gap: 2,
+                alignItems: "flex-start",
+                opacity: 0.55,
+              }}>
+                <Typography variant="caption" sx={{ color: "rgba(241,240,255,0.30)", fontWeight: 700, minWidth: 24, mt: 0.25 }}>
+                  Q{turn.turn_number}
                 </Typography>
-                <Chip label={`${turn.ai_rating}/5.0`} sx={getRatingChipSx(turn.ai_rating)} size="small" />
-              </Paper>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5, color: "rgba(241,240,255,0.70)" }}>
+                    {turn.question}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: "rgba(241,240,255,0.38)" }}>
+                    {turn.user_answer.slice(0, 120)}{turn.user_answer.length > 120 && "..."}
+                  </Typography>
+                </Box>
+                <Chip
+                  label={`${turn.ai_rating}/5`}
+                  sx={{ ...getRatingChipSx(turn.ai_rating), flexShrink: 0, height: 22, fontSize: "0.68rem" }}
+                  size="small"
+                />
+              </Box>
             ))}
           </Box>
         )}
@@ -557,7 +889,9 @@ export default function Interviews() {
   }
 
 
-
+  /* ═══════════════════════════════════════════════
+     REVIEW SESSION VIEW
+  ═══════════════════════════════════════════════ */
   if (reviewSession) {
     return (
       <Box className="page-content">
@@ -609,7 +943,9 @@ export default function Interviews() {
   }
 
 
-
+  /* ═══════════════════════════════════════════════
+     NEW INTERVIEW FORM
+  ═══════════════════════════════════════════════ */
   if (showNewForm) {
     return (
       <Box className="page-content">
@@ -639,13 +975,12 @@ export default function Interviews() {
                     : "rgba(245,158,11,0.05)",
                   color: "#f59e0b",
                   fontWeight: 600,
-                  "&:hover": {
-                    bgcolor: "rgba(245,158,11,0.12)",
-                  },
+                  "&:hover": { bgcolor: "rgba(245,158,11,0.12)" },
                 }}
               />
             </Box>
           )}
+
           <FormControl fullWidth sx={{ mb: 3 }}>
             <InputLabel>Target role</InputLabel>
             <Select value={selectedRole} label="Target role" onChange={(e) => setSelectedRole(e.target.value)}>
@@ -658,9 +993,9 @@ export default function Interviews() {
             <Typography sx={{ ...sectionLabel }}>Interview type</Typography>
             <RadioGroup value={selectedMode} onChange={(e) => setSelectedMode(e.target.value)}>
               {[
-                { value: "technical", label: "Technical", sub: "Coding, system design, technical knowledge" },
+                { value: "technical",  label: "Technical",  sub: "Coding, system design, technical knowledge" },
                 { value: "behavioral", label: "Behavioral", sub: "STAR method, soft skills, past experiences" },
-                { value: "mixed", label: "Mixed", sub: "Combination of technical and behavioral" },
+                { value: "mixed",      label: "Mixed",      sub: "Combination of technical and behavioral" },
               ].map(({ value, label, sub }) => (
                 <Paper key={value} onClick={() => setSelectedMode(value)} sx={{
                   p: 1.5, mb: 1, cursor: "pointer",
@@ -670,7 +1005,9 @@ export default function Interviews() {
                     border: selectedMode === value ? "1px solid rgba(245,158,11,0.55)" : "1px solid rgba(255,255,255,0.14)",
                   },
                 }}>
-                  <FormControlLabel value={value} control={<Radio size="small" />}
+                  <FormControlLabel
+                    value={value}
+                    control={<Radio size="small" />}
                     label={
                       <Box>
                         <Typography variant="body2" sx={{ fontWeight: 650 }}>{label}</Typography>
@@ -705,7 +1042,9 @@ export default function Interviews() {
   }
 
 
-
+  /* ═══════════════════════════════════════════════
+     SESSIONS LIST (main view)
+  ═══════════════════════════════════════════════ */
   return (
     <Box className="page-animate page-content">
       <Box sx={{
@@ -731,7 +1070,9 @@ export default function Interviews() {
       {err && <Alert severity="error" sx={{ mb: 3 }}>{err}</Alert>}
 
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}><CircularProgress /></Box>
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
+          <CircularProgress />
+        </Box>
       ) : sessions.length === 0 ? (
         <Paper sx={{ p: 6, textAlign: "center" }}>
           <Typography sx={{ fontSize: 44, mb: 2 }}>🎤</Typography>
@@ -742,69 +1083,117 @@ export default function Interviews() {
           <Button variant="contained" onClick={() => setShowNewForm(true)}>Start interview</Button>
         </Paper>
       ) : (
-        <Stack spacing={2}>
-          {sessions.map((session) => (
-            <Paper key={session.id} sx={{ p: 3 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="h6" sx={{ mb: 1 }}>{session.role_title}</Typography>
-                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center", mb: 1 }}>
-                    <Chip label={session.mode} size="small" sx={modeChipSx} />
-                    {session.status === "completed" ? (
-                      <>
-                        <Chip
-                          label={`${Number(session.average_score)?.toFixed(1) || "N/A"}/5.0`}
-                          size="small"
-                          sx={getRatingChipSx(session.average_score)}
-                        />
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                          <CheckCircle sx={{ fontSize: 13, color: "#22c55e" }} />
-                          <Typography variant="caption" sx={{ color: "#22c55e" }}>Completed</Typography>
-                        </Box>
-                      </>
-                    ) : (
-                      <Box>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
-                          <AccessTime sx={{ fontSize: 13, color: "#fcd34d" }} />
-                          <Typography variant="caption" sx={{ color: "#fcd34d" }}>
-                            In progress ({session.current_question_number}/{session.total_questions})
-                          </Typography>
-                        </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={((session.current_question_number - 1) / session.total_questions) * 100}
-                          sx={{
-                            width: 120,
-                            height: 3,
-                            borderRadius: 2,
-                            bgcolor: "rgba(255,255,255,0.07)",
-                            "& .MuiLinearProgress-bar": { bgcolor: "#f59e0b" },
-                          }}
-                        />
+        <Stack spacing={1.5}>
+          {sessions.map((session) => {
+            const isInProgress = session.status !== "completed";
+            const score = Number(session.average_score);
+
+            return (
+              <Paper
+                key={session.id}
+                sx={{ p: 0, overflow: "hidden", display: "flex" }}
+              >
+                {/* Coloured left accent bar — green = done, amber = in progress */}
+                <Box sx={{
+                  width: 3,
+                  flexShrink: 0,
+                  background: isInProgress
+                    ? "linear-gradient(180deg, #f59e0b, rgba(245,158,11,0.22))"
+                    : "linear-gradient(180deg, #22c55e, rgba(34,197,94,0.22))",
+                  borderRadius: "10px 0 0 10px",
+                }} />
+
+                {/* Card body */}
+                <Box sx={{
+                  p: { xs: "14px 14px 14px 16px", sm: "16px 18px 16px 20px" },
+                  flexGrow: 1,
+                  minWidth: 0,
+                }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Typography variant="h6" sx={{ mb: 1, fontSize: "0.96rem" }}>
+                        {session.role_title}
+                      </Typography>
+
+                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center", mb: 1 }}>
+                        <Chip label={session.mode} size="small" sx={modeChipSx} />
+
+                        {session.status === "completed" ? (
+                          <>
+                            <Chip
+                              label={`${score?.toFixed(1) || "N/A"} / 5.0`}
+                              size="small"
+                              sx={getRatingChipSx(score)}
+                            />
+                            <Chip
+                              label={getRatingLabel(score)}
+                              size="small"
+                              sx={{ ...getRatingChipSx(score), opacity: 0.72 }}
+                            />
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              <CheckCircle sx={{ fontSize: 13, color: "#22c55e" }} />
+                              <Typography variant="caption" sx={{ color: "#22c55e" }}>Completed</Typography>
+                            </Box>
+                          </>
+                        ) : (
+                          <Box>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
+                              <AccessTime sx={{ fontSize: 13, color: "#fcd34d" }} />
+                              <Typography variant="caption" sx={{ color: "#fcd34d" }}>
+                                In progress ({session.current_question_number}/{session.total_questions})
+                              </Typography>
+                            </Box>
+                            <LinearProgress
+                              variant="determinate"
+                              value={((session.current_question_number - 1) / session.total_questions) * 100}
+                              sx={{
+                                width: 120,
+                                height: 3,
+                                borderRadius: 2,
+                                bgcolor: "rgba(255,255,255,0.07)",
+                                "& .MuiLinearProgress-bar": { bgcolor: "#f59e0b" },
+                              }}
+                            />
+                          </Box>
+                        )}
                       </Box>
-                    )}
+
+                      <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                        {fmt(session.created_at)}
+                      </Typography>
+                    </Box>
+
+                    {/* Action buttons */}
+                    <Box sx={{ display: "flex", gap: 1, ml: 1.5, flexShrink: 0 }}>
+                      <Tooltip title="View session" arrow>
+                        <IconButton size="small" onClick={() => viewSession(session.id)}>
+                          <Visibility fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete session" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={() => confirmDelete(session.id)}
+                          sx={{
+                            "&:hover": {
+                              bgcolor: "rgba(239,68,68,0.12) !important",
+                              color: "#fca5a5 !important",
+                              borderColor: "rgba(239,68,68,0.25) !important",
+                            },
+                          }}
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   </Box>
-                  <Typography variant="caption" sx={{ color: "text.secondary" }}>{fmt(session.created_at)}</Typography>
                 </Box>
-                <Box sx={{ display: "flex", gap: 1, ml: 2, flexShrink: 0 }}>
-                  <Tooltip title="View session" arrow>
-                    <IconButton size="small" onClick={() => viewSession(session.id)}>
-                      <Visibility fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Delete session" arrow>
-                    <IconButton size="small" onClick={() => confirmDelete(session.id)} sx={{
-                      "&:hover": { bgcolor: "rgba(239,68,68,0.12) !important", color: "#fca5a5 !important", borderColor: "rgba(239,68,68,0.25) !important" },
-                    }}>
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </Box>
-            </Paper>
-          ))}
+              </Paper>
+            );
+          })}
         </Stack>
       )}
+
       <ConfirmDialog
         open={confirmDialog.open}
         title="Delete session"
