@@ -6,13 +6,14 @@ import {
   LinearProgress, CircularProgress, IconButton,
 } from "@mui/material";
 import {
-  Search, AutoAwesome, ChevronLeft, ChevronRight,
-  Delete, OpenInNew, CheckCircle, RemoveCircle, Cancel, AddTask,
+  Search, AutoAwesome, Delete, OpenInNew,
+  CheckCircle, RemoveCircle, Cancel, AddTask,
 } from "@mui/icons-material";
 import { useToast } from "../toast/ToastContext";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 
+/* ── Helpers ── */
 function groupByStatus(items) {
   const g = { missing: [], partial: [], matched: [] };
   for (const it of items || []) {
@@ -29,17 +30,19 @@ const sectionLabel = {
   fontSize: "0.65rem",
 };
 
+const statusSx = {
+  missing: { bgcolor: "rgba(239,68,68,0.10)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.20)" },
+  partial:  { bgcolor: "rgba(245,158,11,0.10)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.20)" },
+  matched:  { bgcolor: "rgba(34,197,94,0.10)",  color: "#86efac", border: "1px solid rgba(34,197,94,0.20)" },
+};
 
+
+/* ── Gap analysis skill row ── */
 function SkillRow({ it, type }) {
-  const colours = {
-    missing: { bgcolor: "rgba(239,68,68,0.10)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.20)" },
-    partial: { bgcolor: "rgba(245,158,11,0.10)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.20)" },
-    matched: { bgcolor: "rgba(34,197,94,0.10)", color: "#86efac", border: "1px solid rgba(34,197,94,0.20)" },
-  };
   const meta =
     type === "missing" ? `Required L${it.required_level} · Importance ${it.importance}` :
-      type === "partial" ? `You L${it.user_level} → Required L${it.required_level} · Importance ${it.importance}` :
-        `You L${it.user_level} · Required L${it.required_level}`;
+    type === "partial"  ? `You L${it.user_level} → Required L${it.required_level} · Importance ${it.importance}` :
+                          `You L${it.user_level} · Required L${it.required_level}`;
   return (
     <Box sx={{
       display: "flex", alignItems: "flex-start", justifyContent: "space-between",
@@ -50,11 +53,143 @@ function SkillRow({ it, type }) {
         <Typography sx={{ fontWeight: 650, fontSize: "0.875rem" }}>{it.name}</Typography>
         <Typography variant="caption" sx={{ color: "text.secondary" }}>{meta}</Typography>
       </Box>
-      <Chip label={type} size="small" sx={{ ...colours[type], flexShrink: 0, ml: 1, fontSize: "0.68rem" }} />
+      <Chip label={type} size="small" sx={{ ...statusSx[type], flexShrink: 0, ml: 1, fontSize: "0.68rem" }} />
     </Box>
   );
 }
 
+
+/* ── Skill card for weekly plan ── */
+function SkillCard({ it, mySkillIds, completingId, onComplete }) {
+  const learned = mySkillIds.has(it.skill_id);
+
+  return (
+    <Box sx={{
+      p: { xs: "16px 16px 18px", sm: "18px 20px 20px" },
+      borderRadius: "10px",
+      border: learned
+        ? "1px solid rgba(34,197,94,0.20)"
+        : it.status === "missing"
+          ? "1px solid rgba(239,68,68,0.14)"
+          : "1px solid rgba(245,158,11,0.14)",
+      bgcolor: learned
+        ? "rgba(34,197,94,0.04)"
+        : it.status === "missing"
+          ? "rgba(239,68,68,0.03)"
+          : "rgba(245,158,11,0.03)",
+      display: "flex",
+      flexDirection: "column",
+      gap: 1.5,
+      opacity: learned ? 0.65 : 1,
+      transition: "opacity 200ms ease, border-color 200ms ease",
+    }}>
+
+      {/* Card header: name + status chip + action */}
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, justifyContent: "space-between" }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{
+            fontWeight: 680,
+            fontSize: "0.9rem",
+            lineHeight: 1.3,
+            letterSpacing: "-0.01em",
+            textDecoration: learned ? "line-through" : "none",
+            color: learned ? "rgba(241,240,255,0.45)" : "#f1f0ff",
+          }}>
+            {it.name}
+          </Typography>
+          <Box sx={{ mt: 0.6 }}>
+            <Chip
+              label={it.status}
+              size="small"
+              sx={{ ...statusSx[it.status] || statusSx.missing, fontSize: "0.65rem", height: 20 }}
+            />
+          </Box>
+        </Box>
+
+        {/* Mark learned / already learned */}
+        {learned ? (
+          <Tooltip title="Already in your profile" arrow>
+            <CheckCircle sx={{ fontSize: 20, color: "#22c55e", flexShrink: 0, mt: 0.25 }} />
+          </Tooltip>
+        ) : (
+          <Tooltip title="Mark as learned — adds to My Skills at Intermediate level" arrow>
+            <span>
+              <IconButton
+                size="small"
+                disabled={completingId === it.skill_id}
+                onClick={() => onComplete(it.skill_id)}
+                sx={{
+                  flexShrink: 0,
+                  color: "rgba(241,240,255,0.25)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  bgcolor: "rgba(255,255,255,0.03)",
+                  "&:hover": {
+                    color: "#22c55e",
+                    bgcolor: "rgba(34,197,94,0.10)",
+                    borderColor: "rgba(34,197,94,0.25)",
+                  },
+                  transition: "all 150ms ease",
+                }}
+              >
+                {completingId === it.skill_id
+                  ? <CircularProgress size={14} sx={{ color: "#22c55e" }} />
+                  : <AddTask sx={{ fontSize: 16 }} />
+                }
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
+      </Box>
+
+      {/* Tasks */}
+      {it.suggested_tasks?.length > 0 && (
+        <Box>
+          <Typography sx={{ ...sectionLabel, mb: 0.75 }}>Tasks</Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+            {it.suggested_tasks.map((t) => (
+              <Box key={t} sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+                <Box sx={{
+                  width: 4, height: 4, borderRadius: "50%",
+                  bgcolor: it.status === "missing" ? "#fca5a5" : "#fcd34d",
+                  mt: "6px", flexShrink: 0,
+                  opacity: 0.70,
+                }} />
+                <Typography sx={{
+                  fontSize: "0.8125rem",
+                  color: "rgba(241,240,255,0.72)",
+                  lineHeight: 1.55,
+                }}>
+                  {t}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
+
+      {/* Evidence suggestion */}
+      {it.suggested_evidence && (
+        <Box sx={{
+          pt: 1.25,
+          borderTop: "1px solid rgba(255,255,255,0.05)",
+        }}>
+          <Typography sx={{ ...sectionLabel, mb: 0.5 }}>Evidence</Typography>
+          <Typography sx={{
+            fontSize: "0.7875rem",
+            color: "rgba(241,240,255,0.45)",
+            lineHeight: 1.55,
+            fontStyle: "italic",
+          }}>
+            {it.suggested_evidence}
+          </Typography>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+
+/* ── Main component ── */
 export default function Planner() {
   const [roles, setRoles] = useState([]);
   const [roleId, setRoleId] = useState("");
@@ -117,15 +252,14 @@ export default function Planner() {
         if (Array.isArray(userSkills)) {
           setMySkillIds(new Set(userSkills.map((s) => s.skill_id)));
         }
-      } catch {
-        //
-      }
+      } catch { /* silent */ }
     })();
   }, []);
 
   const grouped = useMemo(() => groupByStatus(gapResult?.items), [gapResult]);
   const totalWeeks = planResult?.weeks_data?.length || 0;
   const currentWeek = totalWeeks ? planResult.weeks_data[weekIndex] : null;
+
   const planProgress = useMemo(() => {
     if (!planResult?.weeks_data) return null;
     const allSkills = planResult.weeks_data.flatMap((w) => w.items || []);
@@ -198,11 +332,7 @@ export default function Planner() {
     try {
       await api("/api/user-skills", {
         method: "POST",
-        body: JSON.stringify({
-          skill_id: Number(skillId),
-          proficiency_level: 3,
-          evidence: null,
-        }),
+        body: JSON.stringify({ skill_id: Number(skillId), proficiency_level: 3, evidence: null }),
       });
       setMySkillIds((prev) => new Set([...prev, skillId]));
       showToast("Skill added to your profile.");
@@ -213,14 +343,13 @@ export default function Planner() {
     }
   }
 
+
   return (
     <Box className="page-animate page-content">
 
-      <Box sx={{
-        pb: 3, mb: 3,
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-      }}>
-        <Typography variant="h4" sx={{ mb: 0.5 }}>Skill gap analyzer</Typography>
+      {/* ── Page header ── */}
+      <Box sx={{ pb: 3, mb: 3, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <Typography variant="h4" sx={{ mb: 0.5 }}>Skill gap analyser</Typography>
         <Typography sx={{ color: "text.secondary" }}>
           Pick a target role, see missing skills, then generate a weekly learning plan.
         </Typography>
@@ -228,6 +357,7 @@ export default function Planner() {
 
       {err && <Alert severity="error" sx={{ mb: 2.5 }}>{err}</Alert>}
 
+      {/* ── Controls ── */}
       <Paper sx={{ p: 3, mb: 2.5 }}>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "5fr 1fr auto" }, gap: 2, alignItems: "flex-end" }}>
           <FormControl fullWidth>
@@ -258,7 +388,7 @@ export default function Planner() {
               startIcon={loading ? <CircularProgress size={14} /> : <Search />}
               sx={{ whiteSpace: "nowrap" }}
             >
-              Analyze gap
+              Analyse gap
             </Button>
             <Button
               variant="contained"
@@ -276,6 +406,8 @@ export default function Planner() {
         </Box>
       </Paper>
 
+
+      {/* ── Gap analysis ── */}
       {gapResult && (
         <Paper sx={{ p: 3, mb: 2.5 }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 2.5 }}>
@@ -306,8 +438,8 @@ export default function Planner() {
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 2 }}>
             {[
               { key: "missing", label: "Missing", items: grouped.missing },
-              { key: "partial", label: "Partial", items: grouped.partial },
-              { key: "matched", label: "Matched", items: grouped.matched },
+              { key: "partial", label: "Partial",  items: grouped.partial },
+              { key: "matched", label: "Matched",  items: grouped.matched },
             ].map(({ key, label, items }) => (
               <Box key={key}>
                 <Typography sx={{ ...sectionLabel, mb: 1.5 }}>{label}</Typography>
@@ -321,22 +453,75 @@ export default function Planner() {
         </Paper>
       )}
 
+
+      {/* ── Learning plan ── */}
       {planResult && (
-        <Paper sx={{ p: 3, mb: 2.5 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 2.5 }}>
-            <Typography sx={{ fontWeight: 700, fontSize: "1rem" }}>
-              Plan for <Box component="span" sx={{ color: "#f59e0b" }}>{planResult.role_title}</Box>
-              <Box component="span" sx={{ color: "text.secondary", fontWeight: 400 }}> ({planResult.weeks} weeks)</Box>
-            </Typography>
+        <Paper sx={{ p: 0, mb: 2.5, overflow: "hidden" }}>
+
+          {/* Plan header */}
+          <Box sx={{
+            px: { xs: 2.5, sm: 3 },
+            pt: { xs: 2.5, sm: 3 },
+            pb: 2.5,
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+            gap: 2,
+          }}>
+            <Box>
+              <Typography sx={{
+                fontWeight: 750,
+                fontSize: "1rem",
+                letterSpacing: "-0.01em",
+                mb: 0.4,
+              }}>
+                {planResult.role_title}
+                <Box component="span" sx={{ color: "text.secondary", fontWeight: 400, fontSize: "0.875rem", ml: 1 }}>
+                  {planResult.weeks} weeks
+                </Box>
+              </Typography>
+
+              {/* Plan progress */}
+              {planProgress && (
+                <Box sx={{ mt: 1.25, minWidth: { xs: "100%", sm: 280 } }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.6 }}>
+                    <Typography sx={{ fontSize: "0.72rem", color: "text.secondary", fontWeight: 600 }}>
+                      Plan progress
+                    </Typography>
+                    <Typography sx={{
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      color: planProgress.pct === 100 ? "#22c55e" : "#f59e0b",
+                    }}>
+                      {planProgress.done}/{planProgress.total} skills &nbsp;·&nbsp; {planProgress.pct}%
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={planProgress.pct}
+                    sx={{
+                      height: 5,
+                      borderRadius: 3,
+                      bgcolor: "rgba(255,255,255,0.06)",
+                      "& .MuiLinearProgress-bar": {
+                        borderRadius: 3,
+                        bgcolor: planProgress.pct === 100 ? "#22c55e" : "#f59e0b",
+                      },
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+
+            {/* Saved plan label + delete */}
             {savedPlanId && (() => {
-
-
-
               const idx = savedPlans.findIndex((p) => Number(p.id) === Number(savedPlanId));
               const planNumber = idx >= 0 ? savedPlans.length - idx : null;
               const planLabel = planNumber ? `Plan ${planNumber} of ${savedPlans.length}` : "Saved";
               return (
-                <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+                <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexShrink: 0 }}>
                   <Chip
                     label={planLabel}
                     size="small"
@@ -364,122 +549,134 @@ export default function Planner() {
             })()}
           </Box>
 
-          {/* Plan progress */}
-          {planProgress && (
-            <Box sx={{ mb: 2.5 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
-                <Typography sx={{ fontSize: "0.78rem", color: "text.secondary" }}>
-                  Plan progress
-                </Typography>
-                <Typography sx={{ fontSize: "0.78rem", fontWeight: 650, color: planProgress.pct === 100 ? "#22c55e" : "#f59e0b" }}>
-                  {planProgress.done} / {planProgress.total} skills learned &nbsp;({planProgress.pct}%)
-                </Typography>
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={planProgress.pct}
-                sx={{
-                  height: 6,
-                  borderRadius: 3,
-                  bgcolor: "rgba(255,255,255,0.06)",
-                  "& .MuiLinearProgress-bar": {
-                    borderRadius: 3,
-                    bgcolor: planProgress.pct === 100 ? "#22c55e" : "#f59e0b",
-                  },
-                }}
-              />
+          {/* ── Week tab navigation ── */}
+          {totalWeeks > 0 && (
+            <Box sx={{
+              px: { xs: 2, sm: 2.5 },
+              py: 1.5,
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              bgcolor: "rgba(11,10,16,0.60)",
+              display: "flex",
+              gap: 1,
+              overflowX: "auto",
+              "&::-webkit-scrollbar": { display: "none" },
+              scrollbarWidth: "none",
+            }}>
+              {planResult.weeks_data.map((w, i) => {
+                const isActive = weekIndex === i;
+                const weekSkills = w.items || [];
+                const learnedCount = weekSkills.filter((it) => mySkillIds.has(it.skill_id)).length;
+                const allDone = weekSkills.length > 0 && learnedCount === weekSkills.length;
+
+                return (
+                  <Box
+                    key={i}
+                    onClick={() => setWeekIndex(i)}
+                    sx={{
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.75,
+                      px: 1.5,
+                      py: 0.75,
+                      borderRadius: "7px",
+                      cursor: "pointer",
+                      border: isActive
+                        ? "1px solid rgba(245,158,11,0.45)"
+                        : "1px solid rgba(255,255,255,0.07)",
+                      bgcolor: isActive
+                        ? "rgba(245,158,11,0.08)"
+                        : "rgba(255,255,255,0.02)",
+                      transition: "all 120ms ease",
+                      "&:hover": isActive ? {} : {
+                        borderColor: "rgba(255,255,255,0.14)",
+                        bgcolor: "rgba(255,255,255,0.04)",
+                      },
+                    }}
+                  >
+                    <Typography sx={{
+                      fontSize: "0.8rem",
+                      fontWeight: isActive ? 700 : 520,
+                      color: isActive ? "#f59e0b" : "rgba(241,240,255,0.55)",
+                      whiteSpace: "nowrap",
+                      lineHeight: 1,
+                      transition: "color 120ms ease",
+                    }}>
+                      Week {i + 1}
+                    </Typography>
+
+                    {weekSkills.length > 0 && (
+                      allDone ? (
+                        <CheckCircle sx={{ fontSize: 12, color: "#22c55e", flexShrink: 0 }} />
+                      ) : (
+                        <Typography sx={{
+                          fontSize: "0.62rem",
+                          fontWeight: 700,
+                          color: isActive ? "#f59e0b" : "rgba(241,240,255,0.35)",
+                          lineHeight: 1,
+                          letterSpacing: "0.02em",
+                          flexShrink: 0,
+                        }}>
+                          {learnedCount}/{weekSkills.length}
+                        </Typography>
+                      )
+                    )}
+                  </Box>
+                );
+              })}
             </Box>
           )}
 
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-            <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              {totalWeeks ? `Week ${weekIndex + 1} of ${totalWeeks}` : "No weeks"}
-            </Typography>
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <IconButton size="small" onClick={() => setWeekIndex((i) => Math.max(0, i - 1))} disabled={!totalWeeks || weekIndex === 0}>
-                <ChevronLeft fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={() => setWeekIndex((i) => Math.min(totalWeeks - 1, i + 1))} disabled={!totalWeeks || weekIndex >= totalWeeks - 1}>
-                <ChevronRight fontSize="small" />
-              </IconButton>
-            </Box>
-          </Box>
-
+          {/* ── Week content ── */}
           {currentWeek && (
-            <Box sx={{ p: 2.5, borderRadius: "8px", bgcolor: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <Typography sx={{ fontWeight: 700, mb: 2 }}>{currentWeek.title}</Typography>
+            <Box sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
+
+              {/* Week title */}
+              <Box sx={{ mb: 2.5 }}>
+                <Typography sx={{
+                  fontWeight: 720,
+                  fontSize: "0.9375rem",
+                  letterSpacing: "-0.01em",
+                  color: "#f1f0ff",
+                }}>
+                  {currentWeek.title}
+                </Typography>
+                {currentWeek.items.length > 0 && (
+                  <Typography variant="caption" sx={{ color: "text.secondary", mt: 0.35, display: "block" }}>
+                    {currentWeek.items.length} skill{currentWeek.items.length !== 1 ? "s" : ""} this week
+                    {" · "}
+                    {currentWeek.items.filter((it) => mySkillIds.has(it.skill_id)).length} learned
+                  </Typography>
+                )}
+              </Box>
 
               {currentWeek.items.length === 0 ? (
-                <Typography variant="body2" sx={{ color: "text.secondary" }}>Light week. Focus on review and evidence.</Typography>
+                <Box sx={{
+                  py: 3, px: 2,
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  bgcolor: "rgba(255,255,255,0.015)",
+                  textAlign: "center",
+                }}>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                    Light week — focus on review and adding evidence to existing skills.
+                  </Typography>
+                </Box>
               ) : (
-                <Box>
-                  <Box sx={{ display: { xs: "none", sm: "grid" }, gridTemplateColumns: "2fr 1fr 3fr 2fr 40px", px: 1, mb: 1 }}>
-                    {["Skill", "Status", "Tasks", "Evidence", ""].map((h) => (
-                      <Typography key={h} sx={{ ...sectionLabel }}>{h}</Typography>
-                    ))}
-                  </Box>
+                /* ── Skill cards grid ── */
+                <Box sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                  gap: { xs: 1.5, sm: 2 },
+                }}>
                   {currentWeek.items.map((it) => (
-                    <Box
+                    <SkillCard
                       key={it.skill_id}
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: { xs: "1fr", sm: "2fr 1fr 3fr 2fr 40px" },
-                        px: 1, py: 1.5, alignItems: "flex-start",
-                        borderTop: "1px solid rgba(255,255,255,0.04)",
-                        "&:first-of-type": { borderTop: "none" },
-                      }}
-                    >
-                      <Typography sx={{ fontWeight: 650, fontSize: "0.875rem" }}>{it.name}</Typography>
-                      <Box>
-                        <Chip
-                          label={it.status}
-                          size="small"
-                          sx={
-                            it.status === "missing"
-                              ? { bgcolor: "rgba(239,68,68,0.10)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.20)", fontSize: "0.68rem" }
-                              : { bgcolor: "rgba(245,158,11,0.10)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.20)", fontSize: "0.68rem" }
-                          }
-                        />
-                      </Box>
-                      <Box component="ul" sx={{ m: 0, pl: 2, pr: 1 }}>
-                        {it.suggested_tasks.map((t) => (
-                          <Box component="li" key={t} sx={{ fontSize: "0.82rem", color: "text.primary", mb: 0.5 }}>{t}</Box>
-                        ))}
-                      </Box>
-                      <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.80rem" }}>
-                        {it.suggested_evidence}
-                      </Typography>
-                      <Box sx={{ display: "flex", alignItems: "flex-start", pt: 0.25 }}>
-                        {mySkillIds.has(it.skill_id) ? (
-                          <Tooltip title="Already in your profile" arrow>
-                            <CheckCircle sx={{ fontSize: 18, color: "#22c55e" }} />
-                          </Tooltip>
-                        ) : (
-                          <Tooltip title="Mark as learned: Adds to My Skills at Intermediate level" arrow>
-                            <span>
-                              <IconButton
-                                size="small"
-                                disabled={completingId === it.skill_id}
-                                onClick={() => completeSkill(it.skill_id)}
-                                sx={{
-                                  p: 0.25,
-                                  color: "rgba(241,240,255,0.25)",
-                                  "&:hover": {
-                                    color: "#22c55e",
-                                    bgcolor: "rgba(34,197,94,0.08)",
-                                  },
-                                }}
-                              >
-                                {completingId === it.skill_id
-                                  ? <CircularProgress size={16} />
-                                  : <AddTask sx={{ fontSize: 17 }} />
-                                }
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        )}
-                      </Box>
-                    </Box>
+                      it={it}
+                      mySkillIds={mySkillIds}
+                      completingId={completingId}
+                      onComplete={completeSkill}
+                    />
                   ))}
                 </Box>
               )}
@@ -488,6 +685,8 @@ export default function Planner() {
         </Paper>
       )}
 
+
+      {/* ── Saved plans ── */}
       <Paper sx={{ p: 3 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
           <Typography sx={{ fontWeight: 720, fontSize: "0.9375rem" }}>Saved plans</Typography>
@@ -501,7 +700,8 @@ export default function Planner() {
         ) : (
           <Box sx={{ overflow: "hidden", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.07)" }}>
             <Box sx={{
-              display: { xs: "none", md: "grid" }, gridTemplateColumns: "3fr 1fr 1fr 2fr 100px",
+              display: { xs: "none", md: "grid" },
+              gridTemplateColumns: "3fr 1fr 1fr 2fr 100px",
               px: 2.5, py: 1.25,
               bgcolor: "rgba(255,255,255,0.015)",
               borderBottom: "1px solid rgba(255,255,255,0.07)",
@@ -517,7 +717,9 @@ export default function Planner() {
                 sx={{
                   display: "grid",
                   gridTemplateColumns: { xs: "1fr auto", md: "3fr 1fr 1fr 2fr 100px" },
-                  px: 2.5, py: 1.75, alignItems: "center", gap: { xs: 1, md: 0 },
+                  px: 2.5, py: 1.75,
+                  alignItems: "center",
+                  gap: { xs: 1, md: 0 },
                   borderBottom: i < savedPlans.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
                   bgcolor: Number(savedPlanId) === Number(p.id) ? "rgba(245,158,11,0.04)" : "transparent",
                   transition: "background 120ms ease",
@@ -525,26 +727,41 @@ export default function Planner() {
                 }}
               >
                 <Box>
-                  <Typography sx={{ fontWeight: 650, fontSize: "0.875rem" }}>{p.role_title || "Unknown role"}</Typography>
-                  <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.75rem", display: { md: "none" }, mt: 0.25 }}>
+                  <Typography sx={{ fontWeight: 650, fontSize: "0.875rem" }}>
+                    {p.role_title || "Unknown role"}
+                  </Typography>
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary", fontSize: "0.75rem",
+                    display: { md: "none" }, mt: 0.25,
+                  }}>
                     {p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}
                   </Typography>
                 </Box>
+
                 <Box sx={{ display: { xs: "none", md: "block" } }}>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>{p.weeks || "—"}</Typography>
                 </Box>
+
                 <Box sx={{ display: { xs: "none", md: "block" } }}>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     {Number.isFinite(Number(p.progress_pct)) ? `${p.progress_pct}%` : "—"}
                   </Typography>
                 </Box>
-                <Typography variant="body2" sx={{ color: "text.secondary", fontSize: "0.78rem", display: { xs: "none", md: "block" } }}>
+
+                <Typography variant="body2" sx={{
+                  color: "text.secondary", fontSize: "0.78rem",
+                  display: { xs: "none", md: "block" },
+                }}>
                   {p.created_at ? new Date(p.created_at).toLocaleString() : "—"}
                 </Typography>
+
                 <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
                   <Tooltip title="Open plan" arrow>
-                    <IconButton size="small" onClick={() => openSaved(p.id)}
-                      sx={{ "&:hover": { bgcolor: "rgba(245,158,11,0.10) !important", color: "#fcd34d !important", borderColor: "rgba(245,158,11,0.25) !important" } }}>
+                    <IconButton
+                      size="small"
+                      onClick={() => openSaved(p.id)}
+                      sx={{ "&:hover": { bgcolor: "rgba(245,158,11,0.10) !important", color: "#fcd34d !important", borderColor: "rgba(245,158,11,0.25) !important" } }}
+                    >
                       <OpenInNew fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -569,6 +786,7 @@ export default function Planner() {
           </Box>
         )}
       </Paper>
+
       <ConfirmDialog
         open={confirmDialog.open}
         title="Delete plan"

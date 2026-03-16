@@ -6,10 +6,21 @@ import {
   Box, Paper, Typography, Button, Alert, CircularProgress,
   Chip, Divider, Tooltip, IconButton,
 } from "@mui/material";
-import { ArrowBack, Refresh, OpenInNew } from "@mui/icons-material";
+import { ArrowBack, Refresh, OpenInNew, TrendingUp } from "@mui/icons-material";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
+} from "recharts";
 
 function fmt(ts) {
   try { return new Date(ts).toLocaleString(); } catch { return ""; }
+}
+
+function fmtShort(ts) {
+  try {
+    const d = new Date(ts);
+    return `${d.getDate()}/${d.getMonth() + 1}`;
+  } catch { return ""; }
 }
 
 const sectionLabel = {
@@ -20,17 +31,53 @@ const sectionLabel = {
   fontSize: "0.65rem",
 };
 
+
+const LINE_COLOURS = ["#f59e0b", "#a78bfa", "#22c55e", "#38bdf8", "#fb923c"];
+
+
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <Box sx={{
+      bgcolor: "rgba(10,9,16,0.98)",
+      border: "1px solid rgba(255,255,255,0.10)",
+      borderRadius: "8px",
+      p: 1.5,
+      minWidth: 160,
+    }}>
+      <Typography sx={{ fontSize: "0.72rem", color: "rgba(241,240,255,0.40)", mb: 0.75 }}>
+        {label}
+      </Typography>
+      {[...payload].sort((a, b) => b.value - a.value).map((entry) => (
+        <Box key={entry.name} sx={{ display: "flex", justifyContent: "space-between", gap: 2, mb: 0.3 }}>
+          <Typography sx={{ fontSize: "0.78rem", color: entry.color, fontWeight: 600, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {entry.name}
+          </Typography>
+          <Typography sx={{ fontSize: "0.78rem", color: entry.color, fontWeight: 700, flexShrink: 0 }}>
+            {Number(entry.value).toFixed(1)}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+
 export default function RecommendationHistory() {
   const navigate = useNavigate();
 
   const [err, setErr] = useState("");
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [loadingRun, setLoadingRun] = useState(false);
+  const [loadingChart, setLoadingChart] = useState(false);
 
   const [runs, setRuns] = useState([]);
   const [activeRun, setActiveRun] = useState(null);
   const [prevRunItems, setPrevRunItems] = useState(null);
   const [prevRunDate, setPrevRunDate] = useState(null);
+
+  const [chartData, setChartData] = useState([]);
+  const [chartRoles, setChartRoles] = useState([]);
 
   async function loadRuns() {
     setErr("");
@@ -38,14 +85,57 @@ export default function RecommendationHistory() {
     setActiveRun(null);
     setPrevRunItems(null);
     setPrevRunDate(null);
+    setChartData([]);
+    setChartRoles([]);
     try {
       const data = await api("/api/recommendations/runs");
-      setRuns(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setRuns(list);
+      if (list.length >= 2) {
+        buildChart(list);
+      }
     } catch (e) {
       if (e.status === 401) navigate("/login");
       else setErr(e.message);
     } finally {
       setLoadingRuns(false);
+    }
+  }
+
+  async function buildChart(runList) {
+    setLoadingChart(true);
+    try {
+      
+      const slice = runList.slice(0, 5).reverse();
+      const details = await Promise.all(
+        slice.map((r) => api(`/api/recommendations/runs/${r.id}`))
+      );
+
+      
+      const latestItems = details[details.length - 1]?.items || [];
+      const topRoles = latestItems
+        .slice(0, 5)
+        .map((item) => ({ id: item.role_id, title: item.title }));
+
+      if (!topRoles.length) return;
+
+      
+      const points = details.map((detail, i) => {
+        const items = detail?.items || [];
+        const point = { date: fmtShort(slice[i].created_at) };
+        topRoles.forEach((role) => {
+          const match = items.find((it) => it.role_id === role.id);
+          point[role.title] = match ? Number(Number(match.final_score).toFixed(1)) : null;
+        });
+        return point;
+      });
+
+      setChartRoles(topRoles);
+      setChartData(points);
+    } catch {
+      //
+    } finally {
+      setLoadingChart(false);
     }
   }
 
@@ -84,6 +174,8 @@ export default function RecommendationHistory() {
 
   return (
     <Box className="page-animate page-content">
+
+       
       <Box sx={{
         pb: 3, mb: 3,
         borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -99,7 +191,6 @@ export default function RecommendationHistory() {
             View previous runs and compare scores over time.
           </Typography>
         </Box>
-
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Button
             variant="outlined"
@@ -128,6 +219,84 @@ export default function RecommendationHistory() {
 
       {err && <Alert severity="error" sx={{ mb: 2.5 }}>{err}</Alert>}
 
+       
+      {(loadingChart || chartData.length >= 2) && (
+        <Paper sx={{ p: 0, mb: 2.5, overflow: "hidden" }}>
+          <Box sx={{
+            px: { xs: 2.5, sm: 3 },
+            pt: 2.5, pb: 2,
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.25,
+          }}>
+            <TrendingUp sx={{ fontSize: 18, color: "#f59e0b" }} />
+            <Box>
+              <Typography sx={{ fontWeight: 700, fontSize: "0.9375rem", letterSpacing: "-0.01em" }}>
+                Score trends
+              </Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                Final scores for your top 5 roles across the last {chartData.length} runs
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ px: { xs: 1, sm: 2 }, py: 2.5 }}>
+            {loadingChart ? (
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, gap: 1.5 }}>
+                <CircularProgress size={16} />
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>Building chart...</Typography>
+              </Box>
+            ) : (
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={chartData} margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="rgba(255,255,255,0.05)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fill: "rgba(241,240,255,0.35)", fontSize: 11, fontFamily: "Manrope, system-ui, sans-serif" }}
+                    axisLine={{ stroke: "rgba(255,255,255,0.07)" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    tick={{ fill: "rgba(241,240,255,0.35)", fontSize: 11, fontFamily: "Manrope, system-ui, sans-serif" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickCount={5}
+                  />
+                  <RechartsTooltip content={<ChartTooltip />} />
+                  <Legend
+                    wrapperStyle={{
+                      paddingTop: 16,
+                      fontSize: "0.75rem",
+                      fontFamily: "Manrope, system-ui, sans-serif",
+                      color: "rgba(241,240,255,0.55)",
+                    }}
+                  />
+                  {chartRoles.map((role, i) => (
+                    <Line
+                      key={role.id}
+                      type="monotone"
+                      dataKey={role.title}
+                      stroke={LINE_COLOURS[i % LINE_COLOURS.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: LINE_COLOURS[i % LINE_COLOURS.length], strokeWidth: 0 }}
+                      activeDot={{ r: 5, strokeWidth: 0 }}
+                      connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </Box>
+        </Paper>
+      )}
+
+       
       <Paper sx={{ overflow: "hidden", mb: 2.5 }}>
         <Box sx={{
           display: "grid",
@@ -143,7 +312,9 @@ export default function RecommendationHistory() {
                 ...sectionLabel,
                 display: (h === "Algorithm" || h === "Top result") ? { xs: "none", md: "block" } : "block",
               }}
-            >{h}</Typography>
+            >
+              {h}
+            </Typography>
           ))}
         </Box>
 

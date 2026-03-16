@@ -80,6 +80,8 @@ export default function Skills() {
   const [addingId, setAddingId] = useState(null);
   const showToast = useToast();
   const [expandedGroups, setExpandedGroups] = useState(new Set());
+  const [categoryShowMore, setCategoryShowMore] = useState({});
+  const CAT_PAGE_SIZE = 8;
   const [infoAnchor, setInfoAnchor] = useState(null);
   const [infoSkill, setInfoSkill] = useState(null);
   const [infoRoles, setInfoRoles] = useState(null);
@@ -143,7 +145,8 @@ export default function Skills() {
 
   useEffect(() => {
     setExpandedGroups(new Set());
-  }, [activeCategory]);
+    setCategoryShowMore({});
+  }, [activeCategory, query]);
 
   const isGroupExpanded = (cat) => activeCategory !== "All" || expandedGroups.has(cat);
 
@@ -327,9 +330,9 @@ export default function Skills() {
                       )}
                     </Box>
                   </Box>
-                  {isGroupExpanded(cat) && (
+{isGroupExpanded(cat) && (
                     <Box>
-                      {grouped[cat].map((s, i) => (
+                      {grouped[cat].slice(0, categoryShowMore[cat] ? grouped[cat].length : CAT_PAGE_SIZE).map((s, i, arr) => (
                         <Box
                           key={s.id}
                           onMouseEnter={() => fetchRolesFor(s.id)}
@@ -338,7 +341,7 @@ export default function Skills() {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "space-between",
-                            borderBottom: i < grouped[cat].length - 1
+                            borderBottom: i < arr.length - 1
                               ? "1px solid rgba(255,255,255,0.04)"
                               : "none",
                             transition: "background 120ms ease",
@@ -402,6 +405,40 @@ export default function Skills() {
                           </Box>
                         </Box>
                       ))}
+
+                      {grouped[cat].length > CAT_PAGE_SIZE && (
+                        <Box
+                          onClick={() => setCategoryShowMore((prev) => ({ ...prev, [cat]: !prev[cat] }))}
+                          sx={{
+                            px: 3, py: 1.25,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            cursor: "pointer",
+                            borderTop: "1px solid rgba(255,255,255,0.04)",
+                            bgcolor: "rgba(255,255,255,0.008)",
+                            transition: "background 120ms ease",
+                            "&:hover": { bgcolor: "rgba(255,255,255,0.02)" },
+                          }}
+                        >
+                          <Typography sx={{
+                            fontSize: "0.78rem",
+                            fontWeight: 620,
+                            color: "rgba(245,158,11,0.75)",
+                            "&:hover": { color: "#f59e0b" },
+                            transition: "color 120ms ease",
+                          }}>
+                            {categoryShowMore[cat]
+                              ? "Show less"
+                              : `Show ${grouped[cat].length - CAT_PAGE_SIZE} more`
+                            }
+                          </Typography>
+                          {categoryShowMore[cat]
+                            ? <KeyboardArrowUp sx={{ fontSize: 14, color: "rgba(245,158,11,0.75)" }} />
+                            : <KeyboardArrowDown sx={{ fontSize: 14, color: "rgba(245,158,11,0.75)" }} />
+                          }
+                        </Box>
+                      )}
                     </Box>
                   )}
                 </Paper>
