@@ -1,4 +1,6 @@
-
+/**
+ * Unit tests for the recommendation scoring utilities.
+ */
 
 const {
   clamp,
@@ -18,6 +20,8 @@ const { hashSnapshot } = require("../utils/hash");
 
 
 
+// Minimal fixture builder used across scoring scenarios to keep the tests
+// focused on the values that actually affect the ranking logic.
 function makeRole(id, title, reqs) {
   return {
     role_id: id,
@@ -34,6 +38,8 @@ function makeRole(id, title, reqs) {
 }
 
 
+// Reusable empty preference set for tests that should exercise pure skill
+// scoring without profile-driven bonuses.
 const NO_PREFS = {
   preferredRolesSet: new Set(),
   preferredTechSet:  new Set(),

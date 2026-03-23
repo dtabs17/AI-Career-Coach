@@ -222,6 +222,8 @@ export default function RecommendationHistory() {
        
       {(loadingChart || chartData.length >= 2) && (
         <Paper sx={{ p: 0, mb: 2.5, overflow: "hidden" }}>
+          {/* Amber accent line consistent with app design language */}
+          <Box sx={{ height: 2, background: "linear-gradient(90deg, #f59e0b 0%, rgba(251,146,60,0.55) 55%, transparent 100%)", opacity: 0.50 }} />
           <Box sx={{
             px: { xs: 2.5, sm: 3 },
             pt: 2.5, pb: 2,

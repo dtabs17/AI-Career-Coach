@@ -1,3 +1,7 @@
+/**
+ * Profile routes for the user-specific metadata that feeds recommendations,
+ * planner generation, and chat context.
+ */
 const router = require("express").Router();
 const { pool } = require("../db");
 const { requireAuth } = require("../middleware/auth_middleware");
@@ -31,6 +35,8 @@ router.put("/", requireAuth, async (req, res, next) => {
     const prefTech = Array.isArray(preferred_technologies) ? preferred_technologies : null;
     const prefRoles = Array.isArray(preferred_roles) ? preferred_roles : null;
 
+    // Profiles are keyed by user_id, so updates use an UPSERT instead of a
+    // separate existence check and update round-trip.
     const { rows } = await pool.query(
       `INSERT INTO profiles (
          user_id, full_name, year_of_study, course, interests,

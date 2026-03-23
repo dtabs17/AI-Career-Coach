@@ -4,6 +4,8 @@ const { requireAuth } = require("../middleware/auth_middleware");
 
 const router = express.Router();
 
+// Type discriminator used when reading and writing plans in progress_entries.
+// Keeps learning plans separate from any other entry types stored in that table.
 const PLAN_TYPE = "learning_plan";
 
 const {
@@ -30,6 +32,20 @@ async function getRoleTitle(roleId) {
   return rows[0] || null;
 }
 
+/**
+ * Fetches all skill requirements for a role and compares them against the
+ * user's current proficiency levels to produce a gap analysis.
+ *
+ * Progress is calculated as an importance-weighted ratio: for each required
+ * skill, the user's level is divided by the required level (capped at 1.0)
+ * and multiplied by the skill's importance weight. Summing earned weights and
+ * dividing by total possible weights gives a 0-100 percentage that reflects
+ * how ready the user is for the role, accounting for which skills matter most.
+ *
+ * @param {string|number} userId - The authenticated user's ID.
+ * @param {number} roleId - The target career role ID.
+ * @returns {Promise<{summary: object, items: object[]}>} Gap summary and per-skill rows.
+ */
 async function computeGap(userId, roleId) {
   const q = `
     SELECT
@@ -115,6 +131,8 @@ router.post("/plan", requireAuth, async (req, res) => {
   const userId = req.user.id;
   const roleId = Number(req.body?.role_id);
   const weeks = Number(req.body?.weeks ?? 4);
+  // save defaults to true so plans are persisted unless the caller explicitly
+  // passes save: false, which is used for preview/dry-run requests.
   const save = req.body?.save !== false;
 
   if (!roleId) return res.status(400).json({ error: "role_id is required" });
@@ -124,7 +142,6 @@ router.post("/plan", requireAuth, async (req, res) => {
 
   const gap = await computeGap(userId, roleId);
   const plan = buildPlan(gap.items, weeks, role.title);
-
 
   const details = {
     role_id: role.id,

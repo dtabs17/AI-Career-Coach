@@ -1,3 +1,6 @@
+/**
+ * Read-only skill catalogue plus reverse lookup of roles that depend on a skill.
+ */
 const router = require("express").Router();
 const { pool } = require("../db");
 
@@ -17,6 +20,7 @@ router.get("/", async (req, res, next) => {
 router.get("/:id/roles", async (req, res, next) => {
   try {
     const skillId = Number(req.params.id);
+    // Guard against malformed path params before they reach the query layer.
     if (!skillId || isNaN(skillId)) return res.status(400).json({ error: "Invalid skill id" });
     const { rows } = await pool.query(
       `SELECT cr.id, cr.title, cr.entry_level

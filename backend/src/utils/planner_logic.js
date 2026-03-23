@@ -13,6 +13,16 @@ function statusOrder(status) {
   return 2;
 }
 
+/**
+ * Computes a 32-bit FNV-1a hash of a string and returns it as an unsigned integer.
+ *
+ * The constants 2166136261 (offset basis) and 16777619 (prime) are defined by
+ * the FNV-1a specification. Used by pickMany to derive a stable numeric seed
+ * from a string so that identical inputs always produce identical task selections.
+ *
+ * @param {string} str - Input string to hash.
+ * @returns {number} Unsigned 32-bit integer hash.
+ */
 function hashString(str) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) {
@@ -22,6 +32,20 @@ function hashString(str) {
   return h >>> 0;
 }
 
+/**
+ * Selects up to `count` unique items from `list` using a deterministic seed
+ * derived from `seedStr`.
+ *
+ * The selection is intentionally deterministic: the same skill name, role, and
+ * week number always produce the same suggestions. This ensures that re-generating
+ * a plan with identical inputs returns an identical result, preventing confusing
+ * changes when a user views or regenerates the same plan.
+ *
+ * @param {string[]} list - Pool of candidate strings to pick from.
+ * @param {number} count - Number of unique items to select.
+ * @param {string} seedStr - Seed string used to derive a stable starting index.
+ * @returns {string[]} Array of up to `count` unique items from `list`.
+ */
 function pickMany(list, count, seedStr) {
   const arr = Array.isArray(list) ? list.filter(Boolean) : [];
   if (!arr.length) return [];
@@ -266,6 +290,18 @@ function evidenceSuggestion(skillName, roleTitle, weekNo) {
   return `Evidence: ${picks.join(" + ")}`;
 }
 
+/**
+ * Computes a sort priority for a skill gap item to determine its position in
+ * the weekly plan.
+ *
+ * Missing skills receive a flat boost of 100 and partial skills receive 50,
+ * ensuring all gaps appear before fully matched skills regardless of importance.
+ * Within each status group, importance weight and required level break ties so
+ * that high-stakes, high-difficulty skills are scheduled in earlier weeks.
+ *
+ * @param {object} r - Gap item with status, importance, and required_level fields.
+ * @returns {number} Priority score (higher value = scheduled earlier in the plan).
+ */
 function priorityScore(r) {
   const weight = safeNum(r.importance, 1);
   const req = safeNum(r.required_level, 1);
@@ -282,6 +318,7 @@ function buildPlan(gapItems, weeks, roleTitle) {
     .sort((a, b) => priorityScore(b) - priorityScore(a));
 
   const buckets = Array.from({ length: w }, () => []);
+  // Distribute skills across weeks round-robin so each week has a balanced workload.
   focus.forEach((it, idx) => buckets[idx % w].push(it));
 
   const weeks_data = buckets.map((arr, i) => {
@@ -297,6 +334,7 @@ function buildPlan(gapItems, weeks, roleTitle) {
         required_level: r.required_level,
         user_level: r.user_level,
         importance: r.importance,
+        // Missing skills (starting from zero) are estimated at 3 hours; partial skills at 2.
         estimated_hours: r.status === "missing" ? 3 : 2,
         suggested_tasks: tasksFor(
           r.name,

@@ -8,27 +8,27 @@ import {
 import { Person, Logout, KeyboardArrowRight, Menu as MenuIcon } from "@mui/icons-material";
 
 const routeMeta = {
-  "/":                        { label: "Dashboard",       parent: null },
-  "/skills":                  { label: "Skills",          parent: null },
-  "/my-skills":               { label: "My Skills",       parent: null },
-  "/recommendations":         { label: "Recommendations", parent: null },
-  "/recommendations/history": { label: "History",         parent: "Recommendations" },
-  "/chat":                    { label: "Chat",            parent: null },
-  "/profile":                 { label: "Profile",         parent: null },
-  "/planner":                 { label: "Planner",         parent: null },
-  "/interviews":              { label: "Interviews",      parent: null },
+  "/": { label: "Dashboard", parent: null },
+  "/skills": { label: "Skills", parent: null },
+  "/my-skills": { label: "My Skills", parent: null },
+  "/recommendations": { label: "Recommendations", parent: null },
+  "/recommendations/history": { label: "History", parent: "Recommendations" },
+  "/chat": { label: "Chat", parent: null },
+  "/profile": { label: "Profile", parent: null },
+  "/planner": { label: "Planner", parent: null },
+  "/interviews": { label: "Interviews", parent: null },
 };
 
 export default function AppTopBar({ onMenuClick }) {
   const { user, logout } = useAuth();
-  const navigate         = useNavigate();
-  const { pathname }     = useLocation();
-  const isMobile         = useMediaQuery("(max-width:900px)");
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isMobile = useMediaQuery("(max-width:900px)");
 
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
 
-  const displayName  = user?.full_name || "Account";
+  const displayName = user?.full_name || "Account";
   const displayEmail = user?.email || "";
 
   const initials = displayName
@@ -40,8 +40,8 @@ export default function AppTopBar({ onMenuClick }) {
 
   const meta = routeMeta[pathname] || { label: "AI Career Coach", parent: null };
 
-  function openMenu(e)  { setAnchorEl(e.currentTarget); }
-  function closeMenu()  { setAnchorEl(null); }
+  function openMenu(e) { setAnchorEl(e.currentTarget); }
+  function closeMenu() { setAnchorEl(null); }
 
   async function handleLogout() {
     closeMenu();

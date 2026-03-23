@@ -268,12 +268,15 @@ export default function Home() {
   const [appInstalled, setAppInstalled] = useState(false);
   const [topRoles, setTopRoles] = useState([]);
 
+  // Show the first-run onboarding only once per authenticated user on the device.
   useEffect(() => {
     if (!isAuthed || !user?.id) return;
     const key = `onboarding_seen_${user.id}`;
     if (!localStorage.getItem(key)) setShowOnboarding(true);
   }, [isAuthed, user?.id]);
 
+  // Preserve the deferred PWA install prompt so the dashboard can surface it
+  // from a normal button instead of relying on the browser's default timing.
   useEffect(() => {
     if (window.__installPrompt) setInstallPrompt(window.__installPrompt);
     const handler = (e) => { e.preventDefault(); setInstallPrompt(e); window.__installPrompt = e; };
@@ -304,6 +307,8 @@ export default function Home() {
     navigate("/my-skills");
   }
 
+  // The dashboard summary depends on both profile fields and skills, so load
+  // them together and derive completion metrics from the combined result.
   useEffect(() => {
     if (!isAuthed) return;
     let mounted = true;
@@ -336,12 +341,14 @@ export default function Home() {
           setProfileCompletion(skills.length > 0 ? 12 : 0);
         }
       } catch {
-        //
+        // Keep the rest of the dashboard interactive if the profile summary request fails.
       }
     })();
     return () => { mounted = false; };
   }, [isAuthed]);
 
+  // Recent chat titles help the dashboard feel alive, but they are secondary
+  // data and should never block the rest of the page from rendering.
   useEffect(() => {
     if (!isAuthed) return;
     let mounted = true;
@@ -364,6 +371,8 @@ export default function Home() {
     return () => { mounted = false; };
   }, [isAuthed]);
 
+  // Recommendation history drives the dashboard's "where to go next" guidance,
+  // including the latest run date and a compact preview of top matched roles.
   useEffect(() => {
     if (!isAuthed) return;
     let mounted = true;
@@ -389,7 +398,7 @@ export default function Home() {
           }
         }
       } catch {
-        //
+        // Keep the rest of the dashboard interactive if the recommendation preview request fails.
       }
     })();
     return () => { mounted = false; };
@@ -401,6 +410,8 @@ export default function Home() {
 
 
   const localClickTs = user?.id ? localStorage.getItem(`last_run_clicked_${user.id}`) : null;
+  // Prefer the freshest timestamp between the stored button click and the real
+  // run record so relative dashboard copy stays stable across navigation flows.
   const effectiveRunDate = (() => {
     if (!lastRunDate && !localClickTs) return null;
     if (!lastRunDate) return localClickTs;
@@ -724,6 +735,8 @@ export default function Home() {
         display: "flex",
         alignItems: "center",
       }}>
+        {/* Amber accent line at the top of the hero card, consistent with app design language */}
+        <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #f59e0b 0%, rgba(251,146,60,0.55) 55%, transparent 100%)", opacity: 0.50, zIndex: 2 }} />
         <Box sx={{
           position: "absolute",
           bottom: -60, left: -60,
@@ -807,7 +820,7 @@ export default function Home() {
               </Box>
             </Box>
 
-<Box sx={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, width: { xs: "100%", sm: "auto" } }}>
+            <Box sx={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, width: { xs: "100%", sm: "auto" } }}>
               <ScoreRing score={topRoles[0].score} size={140} />
               {topRoles.length > 1 && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 0.6, width: { xs: "100%", sm: 160 } }}>

@@ -22,6 +22,16 @@ async function assertSessionOwner(client, sessionId, userId) {
   return { ok: true, session: s };
 }
 
+/**
+ * Derives a short, readable title from the first message in a chat session.
+ *
+ * Markdown syntax (code blocks, inline code, headings, emphasis) is stripped
+ * first so the title does not contain raw formatting characters. The text is
+ * then cut at the first sentence boundary and capped at 60 characters.
+ *
+ * @param {string} text - The raw message content to derive a title from.
+ * @returns {string} A trimmed title string, or DEFAULT_TITLE if nothing usable remains.
+ */
 function makeChatTitle(text) {
   let s = String(text || "")
     .replace(/```[\s\S]*?```/g, "")
@@ -185,6 +195,7 @@ router.get("/sessions/:sessionId/messages", requireAuth, async (req, res, next) 
     client.release();
   }
 });
+
 router.post("/sessions/:sessionId/messages", requireAuth, async (req, res, next) => {
   const userId = req.user.id;
   const sessionId = Number(req.params.sessionId);
@@ -198,6 +209,12 @@ router.post("/sessions/:sessionId/messages", requireAuth, async (req, res, next)
   if (content.length > 4000)
     return res.status(400).json({ error: "Message too long" });
 
+  // A PostgreSQL advisory lock is used here to prevent a race condition where
+  // two requests on the same session arrive simultaneously and both call the
+  // OpenAI API, resulting in two assistant messages being inserted for a single
+  // user message. The lock is scoped to (LOCK_NS, sessionId) so sessions do not
+  // block each other. LOCK_NS is an arbitrary application namespace constant
+  // chosen to avoid colliding with advisory locks from other parts of the app.
   const LOCK_NS = 7711;
   const lockKey1 = LOCK_NS;
   const lockKey2 = sessionId;
@@ -227,6 +244,8 @@ router.post("/sessions/:sessionId/messages", requireAuth, async (req, res, next)
     );
     const userMsgCount = countRes.rows[0]?.cnt ?? 0;
 
+    // Auto-title only fires on the first user message. The WHERE clause guards
+    // against overwriting a title the user has already set manually.
     if (userMsgCount === 1) {
       const title = makeChatTitle(content);
       await client.query(
@@ -264,6 +283,9 @@ router.post("/sessions/:sessionId/messages", requireAuth, async (req, res, next)
     );
     const skills = skillsRes.rows || [];
 
+    // The last 12 messages are passed as context. This keeps the prompt within
+    // a reasonable token budget while still giving the model enough history to
+    // follow the conversation.
     const contextRes = await client.query(
       `SELECT role, content
        FROM chat_messages

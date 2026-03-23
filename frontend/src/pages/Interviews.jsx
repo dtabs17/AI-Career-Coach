@@ -16,7 +16,6 @@ import { useToast } from "../toast/ToastContext";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 
-/* ── Keyframes ─────────────────────────────────── */
 const pulseAnim = keyframes`
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
@@ -28,7 +27,6 @@ const barAnim = keyframes`
 `;
 
 
-/* ── Helpers ────────────────────────────────────── */
 function fmt(ts) {
   try { return new Date(ts).toLocaleString(); } catch { return ""; }
 }
@@ -62,8 +60,9 @@ const sectionLabel = {
   mb: 1,
 };
 
-
-/* ── Waveform ───────────────────────────────────── */
+/**
+ * Displays a lightweight speaking indicator while question audio is playing.
+ */
 function Waveform({ active }) {
   const bars = [55, 100, 68, 90, 48, 82, 60, 95, 62];
   return (
@@ -90,7 +89,6 @@ function Waveform({ active }) {
 }
 
 
-/* ── Main component ─────────────────────────────── */
 export default function Interviews() {
   const navigate = useNavigate();
   const showToast = useToast();
@@ -125,10 +123,12 @@ export default function Interviews() {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, sessionId: null });
 
 
-  /* ── Effects ── */
   useEffect(() => {
     loadSessions();
     loadRoles();
+    // Fetch the user's last recommendation run to pre-select the top suggested
+    // role in the new interview form. Failures are silently ignored since this
+    // is a convenience feature, not critical to the page.
     (async () => {
       try {
         const runs = await api("/api/recommendations/runs");
@@ -146,6 +146,8 @@ export default function Interviews() {
     })();
   }, []);
 
+  // Detect browser speech-recognition support once and clean up any active
+  // microphone or audio resources when the page unmounts.
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SR) setVoiceSupported(true);
@@ -155,6 +157,10 @@ export default function Interviews() {
     };
   }, []);
 
+  // Auto-play the question audio each time a new turn loads. The 700ms delay
+  // gives React time to commit the new turn to the DOM and the browser time to
+  // settle before the audio fetch starts, preventing a flash of unstyled content
+  // mid-playback on slower connections.
   useEffect(() => {
     if (!currentTurn?.question) return;
     const timer = setTimeout(() => { speakQuestion(currentTurn.question); }, 700);
@@ -162,7 +168,6 @@ export default function Interviews() {
   }, [currentTurn?.id]);
 
 
-  /* ── TTS ── */
   function stopTts() {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -183,6 +188,8 @@ export default function Interviews() {
 
   function resumeTts() {
     if (audioRef.current && audioRef.current.paused) {
+      // Rewind by 1.2 seconds before resuming. Audio paused mid-sentence sounds
+      // abrupt on resume, so a short rewind provides natural overlap.
       audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 1.2);
       audioRef.current.play();
       setTtsPaused(false);
@@ -194,6 +201,8 @@ export default function Interviews() {
     stopTts();
     setTtsLoading(true);
     try {
+      // voice_id is included in the request body for API consistency but the
+      // backend ignores it and uses the hardcoded INTERVIEW_VOICE_ID constant.
       const res = await fetch("/api/interviews/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -205,20 +214,19 @@ export default function Interviews() {
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audioRef.current = audio;
-      audio.onplay  = () => { setTtsSpeaking(true);  setTtsPaused(false); };
+      audio.onplay = () => { setTtsSpeaking(true); setTtsPaused(false); };
       audio.onpause = () => { if (!audio.ended) { setTtsSpeaking(false); setTtsPaused(true); } };
       audio.onended = () => { setTtsSpeaking(false); setTtsPaused(false); URL.revokeObjectURL(url); };
       audio.onerror = () => { setTtsSpeaking(false); setTtsPaused(false); };
       audio.play();
     } catch {
-      setTtsLoading(false);
+      // setTtsLoading is handled in finally; nothing else to do on fetch failure.
     } finally {
       setTtsLoading(false);
     }
   }
 
 
-  /* ── Voice input ── */
   function toggleVoice() {
     if (isListening) { recognitionRef.current?.stop(); return; }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -235,14 +243,13 @@ export default function Interviews() {
       setAnswer((prev) => (prev ? prev + " " + transcript : transcript).trim());
     };
     recognition.onerror = () => setIsListening(false);
-    recognition.onend   = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
   }
 
 
-  /* ── Data ── */
   async function loadSessions() {
     setLoading(true); setErr("");
     try {
@@ -261,6 +268,8 @@ export default function Interviews() {
     } catch (e) { console.error("Failed to load roles:", e); }
   }
 
+  // Session creation returns both the persisted session record and the first
+  // generated question so the page can enter the live interview state at once.
   async function startNewInterview() {
     if (!selectedRole) { setErr("Please select a role"); return; }
     setSubmitting(true); setErr("");
@@ -281,6 +290,8 @@ export default function Interviews() {
     } finally { setSubmitting(false); }
   }
 
+  // The answer endpoint evaluates the current turn and, unless the interview
+  // is complete, also returns the next generated question in the same request.
   async function submitAnswer() {
     if (!answer.trim()) { setErr("Please provide an answer"); return; }
     if (isListening) { recognitionRef.current?.stop(); setIsListening(false); }
@@ -304,6 +315,9 @@ export default function Interviews() {
         setAllTurns([...updatedTurns, result.next_turn]);
       } else {
         setAllTurns(updatedTurns);
+        // _justCompleted is a synthetic client-side flag, not a database field.
+        // It signals the active interview view to render the completion screen
+        // instead of waiting for a next turn that will never arrive.
         setCurrentTurn({ ...updatedTurn, _justCompleted: true });
         loadSessions();
       }
@@ -321,6 +335,9 @@ export default function Interviews() {
       const data = await api(`/api/interviews/sessions/${sessionId}`);
       const session = data.session;
       const turns = data.turns || [];
+
+      // Rebuild whichever state the user left last: resume the current live
+      // question for in-progress sessions, or show the completed transcript.
       if (session.status === "in_progress") {
         const answeredTurns = turns.filter((t) => t.user_answer);
         const currentTurn = turns.find((t) => t.turn_number === session.current_question_number);
@@ -366,20 +383,17 @@ export default function Interviews() {
   }
 
 
-  /* ═══════════════════════════════════════════════
-     ACTIVE INTERVIEW VIEW
-  ═══════════════════════════════════════════════ */
+  // Keep the live interview experience separate from the setup/list view so
+  // microphone, audio, and completion state stay scoped to the active session.
   if (activeSession && currentTurn) {
     const isCompleted = currentTurn._justCompleted || !currentTurn.question;
     const answeredTurns = allTurns.filter((t) => t.user_answer);
     const currentQuestionNum = activeSession.current_question_number;
 
-
-    /* ── Completion screen ── */
     if (isCompleted) {
       const avgScore = answeredTurns.reduce((sum, t) => sum + (t.ai_rating || 0), 0) / answeredTurns.length;
       const strongTurns = answeredTurns.filter((t) => t.ai_rating >= 4.0);
-      const weakTurns   = answeredTurns.filter((t) => t.ai_rating  < 3.5);
+      const weakTurns = answeredTurns.filter((t) => t.ai_rating < 3.5);
 
       return (
         <Box className="page-content">
@@ -411,7 +425,7 @@ export default function Interviews() {
                     </Typography>
                   </Box>
                 )) : (
-                  <Typography variant="body2" sx={{ color: "text.secondary" }}>Keep practising — you'll improve.</Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>Keep practising. You will get there.</Typography>
                 )}
               </Box>
               <Box>
@@ -442,7 +456,7 @@ export default function Interviews() {
                   <Divider sx={{ mb: 2 }} />
                   <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Your answer</Typography>
                   <Typography variant="body2" sx={{ mt: 0.5, mb: 2 }}>{turn.user_answer}</Typography>
-                  <Chip label={`${turn.ai_rating}/5.0 — ${getRatingLabel(turn.ai_rating)}`} sx={{ ...getRatingChipSx(turn.ai_rating), mb: 1.5 }} />
+                  <Chip label={`${turn.ai_rating}/5.0 (${getRatingLabel(turn.ai_rating)})`} sx={{ ...getRatingChipSx(turn.ai_rating), mb: 1.5 }} />
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>{turn.ai_feedback}</Typography>
                 </>
               )}
@@ -452,17 +466,15 @@ export default function Interviews() {
       );
     }
 
-
-    /* ── Active question screen ── */
+    // Once the backend scores the submitted answer, the current-turn panel
+    // temporarily switches into feedback mode until the user advances.
     const showFeedback = currentTurn.user_answer && currentTurn.ai_feedback;
 
     return (
       <Box className="page-content">
 
-        {/* ── Interview card: topbar + split panels ── */}
         <Paper sx={{ p: 0, overflow: "hidden" }}>
 
-          {/* ── Top bar ── */}
           <Box sx={{
             px: { xs: 2, sm: 2.5 },
             pt: { xs: 1.5, sm: 1.75 },
@@ -475,7 +487,6 @@ export default function Interviews() {
               alignItems: "center",
               mb: 1.25,
             }}>
-              {/* Left: role + mode chips */}
               <Box sx={{ display: "flex", gap: 0.75, alignItems: "center", flex: 1, minWidth: 0, overflow: "hidden" }}>
                 <Chip
                   label={activeSession.role_title}
@@ -489,7 +500,7 @@ export default function Interviews() {
                 <Chip label={activeSession.mode} size="small" sx={modeChipSx} />
               </Box>
 
-              {/* Centre: Q counter — flex trick keeps it centred without absolute */}
+              {/* Centre: Q counter uses a flex trick to stay centred without absolute positioning */}
               <Typography sx={{
                 fontSize: "0.68rem",
                 fontWeight: 700,
@@ -502,7 +513,6 @@ export default function Interviews() {
                 Q {currentQuestionNum} / {activeSession.total_questions}
               </Typography>
 
-              {/* Right: exit */}
               <Box sx={{ display: "flex", justifyContent: "flex-end", flex: 1 }}>
                 <Button variant="outlined" color="secondary" size="small" onClick={backToList}>
                   Exit
@@ -530,14 +540,12 @@ export default function Interviews() {
             <Alert severity="error" sx={{ mx: { xs: 2, sm: 2.5 }, mt: 1.5 }}>{err}</Alert>
           )}
 
-          {/* ── Two-column split: stacks to one column on mobile ── */}
           <Box sx={{
             display: "grid",
             gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
             minHeight: { md: 430 },
           }}>
 
-            {/* ══ LEFT PANEL — question ══ */}
             <Box sx={{
               p: { xs: "20px 20px 22px", sm: "26px 28px 24px" },
               bgcolor: "rgba(14,13,22,0.98)",
@@ -548,7 +556,6 @@ export default function Interviews() {
               position: "relative",
             }}>
 
-              {/* Animated amber accent strip at top of left panel */}
               <Box sx={{
                 position: "absolute",
                 top: 0, left: 0, right: 0,
@@ -558,9 +565,7 @@ export default function Interviews() {
                 transition: "opacity 400ms ease",
               }} />
 
-              {/* Interviewer header row */}
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: { xs: 2, md: 2.5 } }}>
-                {/* Avatar */}
                 <Box sx={{
                   width: 36,
                   height: 36,
@@ -577,7 +582,6 @@ export default function Interviews() {
                   <Badge sx={{ fontSize: 18, color: "#1a1a1a" }} />
                 </Box>
 
-                {/* Name + speaking status */}
                 <Box sx={{ flex: 1 }}>
                   <Typography sx={{ fontSize: "0.78rem", fontWeight: 700, color: "rgba(241,240,255,0.80)", lineHeight: 1.2 }}>
                     AI Interviewer
@@ -597,14 +601,12 @@ export default function Interviews() {
                   </Typography>
                 </Box>
 
-                {/* Waveform animation */}
                 <Waveform active={ttsSpeaking} />
               </Box>
 
-              {/* Question label */}
               <Typography sx={{ ...sectionLabel, mb: { xs: 1, md: 1.25 } }}>Question</Typography>
 
-              {/* Question text — grows to fill available space on desktop */}
+              {/* Question text grows to fill available vertical space on desktop */}
               <Typography sx={{
                 fontSize: { xs: "0.975rem", sm: "1.05rem" },
                 fontWeight: 520,
@@ -617,7 +619,7 @@ export default function Interviews() {
               </Typography>
 
               {/* Feedback state only: show the user's submitted answer on the left
-                  so they can read question + their answer together while seeing feedback */}
+                  so they can read question and their answer together while reviewing feedback */}
               {showFeedback && currentTurn.user_answer && (
                 <Box sx={{
                   mt: { xs: 2, md: 2.5 },
@@ -634,7 +636,6 @@ export default function Interviews() {
                 </Box>
               )}
 
-              {/* TTS controls — only shown in answering state */}
               {!showFeedback && (
                 <Box sx={{
                   display: "flex",
@@ -697,17 +698,13 @@ export default function Interviews() {
             </Box>
 
 
-            {/* ══ RIGHT PANEL — answer input or feedback ══ */}
             {!showFeedback ? (
-
-              /* ── Answering panel ── */
               <Box sx={{
                 p: { xs: "20px 20px 22px", sm: "26px 28px 24px" },
                 bgcolor: "#0c0b0f",
                 display: "flex",
                 flexDirection: "column",
               }}>
-                {/* Header row */}
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: { xs: 2, md: 2.5 } }}>
                   <Typography sx={{ ...sectionLabel, mb: 0 }}>
                     {isListening ? "Transcript" : "Your response"}
@@ -719,7 +716,6 @@ export default function Interviews() {
                   )}
                 </Box>
 
-                {/* Mic button */}
                 {voiceSupported && (
                   <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: { xs: 2, md: 2.5 } }}>
                     <Box
@@ -748,7 +744,7 @@ export default function Interviews() {
                     >
                       {isListening
                         ? <MicOff sx={{ fontSize: { xs: 24, md: 26 }, color: "#fca5a5" }} />
-                        : <Mic    sx={{ fontSize: { xs: 24, md: 26 }, color: "#f59e0b" }} />
+                        : <Mic sx={{ fontSize: { xs: 24, md: 26 }, color: "#f59e0b" }} />
                       }
                     </Box>
                     <Typography variant="caption" sx={{
@@ -757,12 +753,11 @@ export default function Interviews() {
                       fontWeight: 600,
                       letterSpacing: "0.04em",
                     }}>
-                      {isListening ? "Listening — tap to stop" : "Tap to speak"}
+                      {isListening ? "Listening, tap to stop" : "Tap to speak"}
                     </Typography>
                   </Box>
                 )}
 
-                {/* Answer textarea */}
                 <TextField
                   multiline
                   rows={voiceSupported ? 5 : 8}
@@ -782,7 +777,6 @@ export default function Interviews() {
                   }}
                 />
 
-                {/* Submit */}
                 <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                   <Button
                     variant="contained"
@@ -799,24 +793,21 @@ export default function Interviews() {
 
             ) : (
 
-              /* ── Feedback panel ── */
               <Box sx={{
                 p: { xs: "20px 20px 22px", sm: "26px 28px 24px" },
                 bgcolor: "#0c0b0f",
                 display: "flex",
                 flexDirection: "column",
               }}>
-                {/* Header */}
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 2.5, flexWrap: "wrap" }}>
                   <CheckCircle sx={{ color: "#86efac", fontSize: 19 }} />
                   <Typography sx={{ fontWeight: 700, fontSize: "0.92rem" }}>Answer received</Typography>
                   <Chip
-                    label={`${currentTurn.ai_rating}/5.0 — ${getRatingLabel(currentTurn.ai_rating)}`}
+                    label={`${currentTurn.ai_rating}/5.0. ${getRatingLabel(currentTurn.ai_rating)}`}
                     sx={{ ...getRatingChipSx(currentTurn.ai_rating), ml: { xs: 0, sm: "auto" } }}
                   />
                 </Box>
 
-                {/* Feedback text */}
                 <Typography variant="body2" sx={{
                   color: "rgba(241,240,255,0.55)",
                   lineHeight: 1.85,
@@ -825,7 +816,6 @@ export default function Interviews() {
                   {currentTurn.ai_feedback}
                 </Typography>
 
-                {/* Next question */}
                 <Box sx={{
                   display: "flex",
                   justifyContent: "flex-end",
@@ -851,7 +841,6 @@ export default function Interviews() {
           </Box>
         </Paper>
 
-        {/* ── Previous answers (subtle history below the main card) ── */}
         {allTurns.filter((t) => t.user_answer && t.id !== currentTurn.id).length > 0 && (
           <Box sx={{ mt: 5, pt: 3.5, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
             <Typography sx={{ ...sectionLabel, mb: 2 }}>Previous answers</Typography>
@@ -889,9 +878,6 @@ export default function Interviews() {
   }
 
 
-  /* ═══════════════════════════════════════════════
-     REVIEW SESSION VIEW
-  ═══════════════════════════════════════════════ */
   if (reviewSession) {
     return (
       <Box className="page-content">
@@ -930,7 +916,7 @@ export default function Interviews() {
                 <Divider sx={{ mb: 2 }} />
                 <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 650 }}>Your answer</Typography>
                 <Typography variant="body2" sx={{ mt: 0.5, mb: 2 }}>{turn.user_answer}</Typography>
-                <Chip label={`${turn.ai_rating}/5.0 — ${getRatingLabel(turn.ai_rating)}`} sx={{ ...getRatingChipSx(turn.ai_rating), mb: 1.5 }} />
+                <Chip label={`${turn.ai_rating}/5.0 (${getRatingLabel(turn.ai_rating)})`} sx={{ ...getRatingChipSx(turn.ai_rating), mb: 1.5 }} />
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>{turn.ai_feedback}</Typography>
               </>
             ) : (
@@ -943,9 +929,6 @@ export default function Interviews() {
   }
 
 
-  /* ═══════════════════════════════════════════════
-     NEW INTERVIEW FORM
-  ═══════════════════════════════════════════════ */
   if (showNewForm) {
     return (
       <Box className="page-content">
@@ -993,9 +976,9 @@ export default function Interviews() {
             <Typography sx={{ ...sectionLabel }}>Interview type</Typography>
             <RadioGroup value={selectedMode} onChange={(e) => setSelectedMode(e.target.value)}>
               {[
-                { value: "technical",  label: "Technical",  sub: "Coding, system design, technical knowledge" },
+                { value: "technical", label: "Technical", sub: "Coding, system design, technical knowledge" },
                 { value: "behavioral", label: "Behavioral", sub: "STAR method, soft skills, past experiences" },
-                { value: "mixed",      label: "Mixed",      sub: "Combination of technical and behavioral" },
+                { value: "mixed", label: "Mixed", sub: "Combination of technical and behavioral" },
               ].map(({ value, label, sub }) => (
                 <Paper key={value} onClick={() => setSelectedMode(value)} sx={{
                   p: 1.5, mb: 1, cursor: "pointer",
@@ -1042,14 +1025,10 @@ export default function Interviews() {
   }
 
 
-  /* ═══════════════════════════════════════════════
-     SESSIONS LIST (main view)
-  ═══════════════════════════════════════════════ */
   return (
     <Box className="page-animate page-content">
       <Box sx={{
-        pb: 3, mb: 3,
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        pb: 3, mb: 0,
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
@@ -1066,6 +1045,8 @@ export default function Interviews() {
           Start new interview
         </Button>
       </Box>
+      {/* Amber accent line replacing the plain white header divider */}
+      <Box sx={{ height: 2, background: "linear-gradient(90deg, #f59e0b 0%, rgba(251,146,60,0.55) 55%, transparent 100%)", opacity: 0.50, mb: 3 }} />
 
       {err && <Alert severity="error" sx={{ mb: 3 }}>{err}</Alert>}
 
@@ -1093,7 +1074,6 @@ export default function Interviews() {
                 key={session.id}
                 sx={{ p: 0, overflow: "hidden", display: "flex" }}
               >
-                {/* Coloured left accent bar — green = done, amber = in progress */}
                 <Box sx={{
                   width: 3,
                   flexShrink: 0,
@@ -1103,7 +1083,6 @@ export default function Interviews() {
                   borderRadius: "10px 0 0 10px",
                 }} />
 
-                {/* Card body */}
                 <Box sx={{
                   p: { xs: "14px 14px 14px 16px", sm: "16px 18px 16px 20px" },
                   flexGrow: 1,
@@ -1163,7 +1142,6 @@ export default function Interviews() {
                       </Typography>
                     </Box>
 
-                    {/* Action buttons */}
                     <Box sx={{ display: "flex", gap: 1, ml: 1.5, flexShrink: 0 }}>
                       <Tooltip title="View session" arrow>
                         <IconButton size="small" onClick={() => viewSession(session.id)}>

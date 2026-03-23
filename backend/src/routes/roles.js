@@ -1,3 +1,6 @@
+/**
+ * Read-only role catalogue used by recommendations, planning, and interviews.
+ */
 const router = require("express").Router();
 const { pool } = require("../db");
 

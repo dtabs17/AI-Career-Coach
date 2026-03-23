@@ -1,3 +1,6 @@
+/**
+ * CRUD routes for the authenticated user's personal skill profile.
+ */
 const router = require("express").Router();
 const { pool } = require("../db");
 const { requireAuth } = require("../middleware/auth_middleware");
@@ -25,6 +28,8 @@ router.post("/", requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: "skill_id and proficiency_level required" });
     }
 
+    // Re-adding an existing skill updates the stored level and evidence so the
+    // frontend can reuse the same endpoint for create and edit flows.
     const { rows } = await pool.query(
       `INSERT INTO user_skills (user_id, skill_id, proficiency_level, evidence)
        VALUES ($1, $2, $3, $4)

@@ -15,6 +15,16 @@ const {
   MAX_TOTAL_BONUS,
 } = require("../utils/scoring");
 
+/**
+ * Safely parses a value that may already be a parsed object or a JSON string.
+ *
+ * The explanation column in recommendation_items is stored as JSONB but the pg
+ * driver can return it as either a plain object or a JSON-encoded string depending
+ * on how the query casts it. This function handles both cases without throwing.
+ *
+ * @param {string|object|null} v - Value to parse.
+ * @returns {object|null} Parsed object, or null if the input is empty or invalid.
+ */
 function parseJsonMaybe(v) {
   if (!v) return null;
   if (typeof v === "object") return v;
@@ -89,6 +99,11 @@ router.post("/run", requireAuth, async (req, res, next) => {
 
     const inputHash = hashSnapshot(inputSnapshot);
 
+    // ON CONFLICT does a no-op update (sets created_at to its own value) solely
+    // to trigger the RETURNING clause. xmax = 0 is a PostgreSQL internal that is
+    // true only on a freshly inserted row, so it reliably distinguishes an insert
+    // from an update caused by a conflict. This lets us detect cache hits without
+    // a separate SELECT query.
     const runRes = await client.query(
       `INSERT INTO recommendation_runs (user_id, input_snapshot, input_hash, algo_version)
        VALUES ($1, $2::json, $3, $4)
@@ -99,6 +114,8 @@ router.post("/run", requireAuth, async (req, res, next) => {
     );
 
     const run = runRes.rows[0];
+    // The pg driver can return the boolean as true, "t", or 1 depending on the
+    // PostgreSQL version and driver configuration, so all three are checked.
     const inserted =
       run.inserted === true || run.inserted === "t" || run.inserted === 1;
 
@@ -213,8 +230,6 @@ router.post("/run", requireAuth, async (req, res, next) => {
     for (const role of byRole.values()) {
       const scored = scoreRole({ role, userSkillMap, preferredRolesSet, preferredTechSet });
 
-
-
       scoredAll.push({
         ...scored,
         description: role.description,
@@ -241,6 +256,8 @@ router.post("/run", requireAuth, async (req, res, next) => {
 
     const rowsToStore = scoredAll;
 
+    // Build a single parameterised bulk INSERT rather than inserting rows one at
+    // a time. This reduces round trips to the database when there are many roles.
     const params = [];
     const valuesSql = [];
     let p = 1;
