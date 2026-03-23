@@ -18,6 +18,8 @@ export default function FloatingChatButton() {
 
   const [showLabel, setShowLabel] = useState(true);
 
+  // Toggles the "Start Chat" label on and off every 2.2 seconds to create a
+  // subtle pulse-and-reveal animation that draws user attention.
   useEffect(() => {
     const id = setInterval(() => setShowLabel((v) => !v), 2200);
     return () => clearInterval(id);

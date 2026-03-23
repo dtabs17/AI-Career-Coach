@@ -1,9 +1,8 @@
-
-
-
-
+// Maximum bonus added when a role matches one the user explicitly listed as preferred.
 const PREFERRED_ROLE_BONUS = 6;
+// Maximum bonus for overlap between the user's preferred technologies and the role's required skills.
 const MAX_TECH_BONUS       = 4;
+// Hard ceiling on the combined preference bonus, preventing it from dominating the competency score.
 const MAX_TOTAL_BONUS      = 10;
 
 
@@ -17,6 +16,17 @@ function round1(n) {
 }
 
 
+/**
+ * Normalises a skill or preference list into a plain string array.
+ *
+ * PostgreSQL JSONB columns can be returned by the pg driver as either a
+ * parsed array or a JSON-encoded string depending on how the column was cast
+ * in the query. This function handles both forms, and also accepts a plain
+ * comma-separated string as a last resort.
+ *
+ * @param {string|string[]|null} value - Raw value from the database or request body.
+ * @returns {string[]} Array of trimmed, non-empty strings.
+ */
 function normalizeStringArray(value) {
   if (!value) return [];
 
@@ -48,8 +58,25 @@ function toLowerSet(arr) {
 }
 
 
-
-
+/**
+ * Scores a single career role against the user's current skills and preferences.
+ *
+ * The competency score is a weighted ratio: for each required skill, the user's
+ * level is divided by the required level (clamped to 1.0 maximum) and multiplied
+ * by the skill's importance weight. Summing earned weights and dividing by total
+ * possible weights gives a 0-100 percentage.
+ *
+ * A preference bonus (capped at MAX_TOTAL_BONUS) is added on top when the role
+ * matches the user's preferred roles or technology stack. The final score is
+ * clamped to [0, 100].
+ *
+ * @param {object} params
+ * @param {object} params.role - Role object containing a reqs array of skill requirements.
+ * @param {Map<number, number>} params.userSkillMap - Map of skill_id to user proficiency level.
+ * @param {Set<string>} params.preferredRolesSet - Lowercase set of the user's preferred role titles.
+ * @param {Set<string>} params.preferredTechSet - Lowercase set of the user's preferred technologies.
+ * @returns {object} Scored role with competency_score, preference_bonus, final_score, and explanation.
+ */
 function scoreRole({ role, userSkillMap, preferredRolesSet, preferredTechSet }) {
   let totalPossible = 0;
   let totalEarned   = 0;
@@ -135,6 +162,8 @@ function scoreRole({ role, userSkillMap, preferredRolesSet, preferredTechSet }) 
   };
 }
 
+// Sorts by raw competency score first (skills-only ranking), then final_score as a tiebreaker.
+// Used for the "Best fit" view where preference weighting should not affect position.
 function sortBestFit(arr) {
   return [...arr].sort((a, b) => {
     if (b.competency_score !== a.competency_score) return b.competency_score - a.competency_score;
@@ -143,7 +172,8 @@ function sortBestFit(arr) {
   });
 }
 
-
+// Sorts by final_score first (competency + preference bonus), then competency_score as a tiebreaker.
+// Used for the "Best fit + preferences" view where preferred roles and tech stack matches rank higher.
 function sortBestFitPlus(arr) {
   return [...arr].sort((a, b) => {
     if (b.final_score      !== a.final_score)      return b.final_score      - a.final_score;

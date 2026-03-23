@@ -1,3 +1,7 @@
+/**
+ * Unit tests for deterministic planner helpers and plan generation.
+ */
+
 const {
   safeNum,
   clamp,
@@ -71,6 +75,8 @@ describe("hashString()", () => {
   });
 });
 
+// The planner uses seeded selection for repeatable task suggestions, so these
+// tests lock down determinism and uniqueness explicitly.
 describe("pickMany()", () => {
   const LIST = ["alpha", "beta", "gamma", "delta", "epsilon"];
 

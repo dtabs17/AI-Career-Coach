@@ -1,3 +1,6 @@
+/**
+ * Shared Material UI theme for the public pages and authenticated dashboard.
+ */
 import { createTheme } from "@mui/material/styles";
 
 const appTheme = createTheme({
@@ -23,7 +26,8 @@ const appTheme = createTheme({
   },
   shape: { borderRadius: 8 },
   components: {
-
+    // Keep base surfaces flat so emphasis comes from spacing, borders, and
+    // content hierarchy instead of default MUI elevation.
     MuiPaper: {
       defaultProps: { elevation: 0 },
       styleOverrides: {

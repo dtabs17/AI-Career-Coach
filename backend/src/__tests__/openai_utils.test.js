@@ -1,3 +1,7 @@
+/**
+ * Unit tests for parsing model output and fallback reply construction.
+ */
+
 const {
   parseEvaluationResponse,
   buildFallbackReply,
@@ -110,6 +114,8 @@ describe("parseEvaluationResponse() - invalid or unexpected input", () => {
 });
 
 
+// Fallback replies are used when the model response is empty or malformed, so
+// the helper should always produce something safe to show in the UI.
 describe("buildFallbackReply()", () => {
   const FALLBACK = "I could not generate a response. Try again.";
 

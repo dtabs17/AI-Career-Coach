@@ -13,7 +13,6 @@ import { useToast } from "../toast/ToastContext";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 
-/* ── Helpers ── */
 function groupByStatus(items) {
   const g = { missing: [], partial: [], matched: [] };
   for (const it of items || []) {
@@ -32,17 +31,16 @@ const sectionLabel = {
 
 const statusSx = {
   missing: { bgcolor: "rgba(239,68,68,0.10)", color: "#fca5a5", border: "1px solid rgba(239,68,68,0.20)" },
-  partial:  { bgcolor: "rgba(245,158,11,0.10)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.20)" },
-  matched:  { bgcolor: "rgba(34,197,94,0.10)",  color: "#86efac", border: "1px solid rgba(34,197,94,0.20)" },
+  partial: { bgcolor: "rgba(245,158,11,0.10)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.20)" },
+  matched: { bgcolor: "rgba(34,197,94,0.10)", color: "#86efac", border: "1px solid rgba(34,197,94,0.20)" },
 };
 
 
-/* ── Gap analysis skill row ── */
 function SkillRow({ it, type }) {
   const meta =
     type === "missing" ? `Required L${it.required_level} · Importance ${it.importance}` :
-    type === "partial"  ? `You L${it.user_level} → Required L${it.required_level} · Importance ${it.importance}` :
-                          `You L${it.user_level} · Required L${it.required_level}`;
+      type === "partial" ? `You L${it.user_level} → Required L${it.required_level} · Importance ${it.importance}` :
+        `You L${it.user_level} · Required L${it.required_level}`;
   return (
     <Box sx={{
       display: "flex", alignItems: "flex-start", justifyContent: "space-between",
@@ -59,7 +57,6 @@ function SkillRow({ it, type }) {
 }
 
 
-/* ── Skill card for weekly plan ── */
 function SkillCard({ it, mySkillIds, completingId, onComplete }) {
   const learned = mySkillIds.has(it.skill_id);
 
@@ -84,7 +81,6 @@ function SkillCard({ it, mySkillIds, completingId, onComplete }) {
       transition: "opacity 200ms ease, border-color 200ms ease",
     }}>
 
-      {/* Card header: name + status chip + action */}
       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, justifyContent: "space-between" }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{
@@ -106,13 +102,12 @@ function SkillCard({ it, mySkillIds, completingId, onComplete }) {
           </Box>
         </Box>
 
-        {/* Mark learned / already learned */}
         {learned ? (
           <Tooltip title="Already in your profile" arrow>
             <CheckCircle sx={{ fontSize: 20, color: "#22c55e", flexShrink: 0, mt: 0.25 }} />
           </Tooltip>
         ) : (
-          <Tooltip title="Mark as learned — adds to My Skills at Intermediate level" arrow>
+          <Tooltip title="Mark as learned. Adds to My Skills at level 3 (Intermediate)" arrow>
             <span>
               <IconButton
                 size="small"
@@ -141,7 +136,6 @@ function SkillCard({ it, mySkillIds, completingId, onComplete }) {
         )}
       </Box>
 
-      {/* Tasks */}
       {it.suggested_tasks?.length > 0 && (
         <Box>
           <Typography sx={{ ...sectionLabel, mb: 0.75 }}>Tasks</Typography>
@@ -167,7 +161,6 @@ function SkillCard({ it, mySkillIds, completingId, onComplete }) {
         </Box>
       )}
 
-      {/* Evidence suggestion */}
       {it.suggested_evidence && (
         <Box sx={{
           pt: 1.25,
@@ -189,7 +182,6 @@ function SkillCard({ it, mySkillIds, completingId, onComplete }) {
 }
 
 
-/* ── Main component ── */
 export default function Planner() {
   const [roles, setRoles] = useState([]);
   const [roleId, setRoleId] = useState("");
@@ -207,6 +199,9 @@ export default function Planner() {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, planId: null });
   const [mySkillIds, setMySkillIds] = useState(new Set());
   const [completingId, setCompletingId] = useState(null);
+  // fromUrlRef tracks whether the current roleId was set from a URL query param.
+  // It gates the auto-generate effect below so the plan only fires once on
+  // deep-link entry, not every time the user manually changes the role selector.
   const fromUrlRef = React.useRef(false);
 
   useEffect(() => {
@@ -218,6 +213,8 @@ export default function Planner() {
     })();
   }, []);
 
+  // Recommendation links can deep-link into the planner with a role_id query
+  // parameter, so capture that once the role catalogue is available.
   useEffect(() => {
     if (!roles.length) return;
     const params = new URLSearchParams(window.location.search);
@@ -274,6 +271,8 @@ export default function Planner() {
     if (weekIndex < 0) setWeekIndex(0);
   }, [totalWeeks, weekIndex]);
 
+  // Gap analysis is a read-only check against the selected role. Clear any
+  // saved plan state first so the page does not mix stale plan data with fresh results.
   async function analyzeGap() {
     setErr(""); setLoading(true); setGapResult(null); setPlanResult(null); setSavedPlanId(null); setWeekIndex(0);
     try {
@@ -284,6 +283,8 @@ export default function Planner() {
     finally { setLoading(false); }
   }
 
+  // Plan generation persists the returned schedule immediately so the user can
+  // reopen it later from the saved-plans list without regenerating it.
   async function generatePlan() {
     setErr(""); setLoading(true); setPlanResult(null); setSavedPlanId(null); setWeekIndex(0);
     try {
@@ -300,6 +301,8 @@ export default function Planner() {
     finally { setLoading(false); }
   }
 
+  // Opening a saved entry restores the exact stored plan and re-syncs the
+  // selected role so follow-up actions stay aligned with the saved target role.
   async function openSaved(id) {
     setErr(""); setLoading(true); setPlanResult(null); setSavedPlanId(id); setWeekIndex(0);
     try {
@@ -327,11 +330,15 @@ export default function Planner() {
     finally { setDeletingId(null); }
   }
 
+  // Completing a skill from the planner writes it straight into the user's
+  // profile so progress indicators update immediately across the app.
   async function completeSkill(skillId) {
     setCompletingId(skillId);
     try {
       await api("/api/user-skills", {
         method: "POST",
+        // Skills added directly from the planner are recorded at level 3 (Intermediate)
+        // as a sensible starting point. Users can adjust the level in My Skills.
         body: JSON.stringify({ skill_id: Number(skillId), proficiency_level: 3, evidence: null }),
       });
       setMySkillIds((prev) => new Set([...prev, skillId]));
@@ -347,7 +354,6 @@ export default function Planner() {
   return (
     <Box className="page-animate page-content">
 
-      {/* ── Page header ── */}
       <Box sx={{ pb: 3, mb: 3, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <Typography variant="h4" sx={{ mb: 0.5 }}>Skill gap analyser</Typography>
         <Typography sx={{ color: "text.secondary" }}>
@@ -357,57 +363,59 @@ export default function Planner() {
 
       {err && <Alert severity="error" sx={{ mb: 2.5 }}>{err}</Alert>}
 
-      {/* ── Controls ── */}
-      <Paper sx={{ p: 3, mb: 2.5 }}>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "5fr 1fr auto" }, gap: 2, alignItems: "flex-end" }}>
-          <FormControl fullWidth>
-            <InputLabel>Target role</InputLabel>
-            <Select value={roleId} label="Target role" onChange={(e) => setRoleId(e.target.value)}>
-              <MenuItem value="">
-                <em style={{ color: "rgba(241,240,255,0.38)", fontStyle: "normal" }}>Select a role...</em>
-              </MenuItem>
-              {roles.map((r) => <MenuItem key={r.id} value={r.id}>{r.title}</MenuItem>)}
-            </Select>
-          </FormControl>
+      <Paper sx={{ p: 0, mb: 2.5, overflow: "hidden" }}>
+        {/* Amber accent line consistent with app design language */}
+        <Box sx={{ height: 2, background: "linear-gradient(90deg, #f59e0b 0%, rgba(251,146,60,0.55) 55%, transparent 100%)", opacity: 0.50 }} />
+        <Box sx={{ p: 3 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "5fr 1fr auto" }, gap: 2, alignItems: "flex-end" }}>
+            <FormControl fullWidth>
+              <InputLabel>Target role</InputLabel>
+              <Select value={roleId} label="Target role" onChange={(e) => setRoleId(e.target.value)}>
+                <MenuItem value="">
+                  <em style={{ color: "rgba(241,240,255,0.38)", fontStyle: "normal" }}>Select a role...</em>
+                </MenuItem>
+                {roles.map((r) => <MenuItem key={r.id} value={r.id}>{r.title}</MenuItem>)}
+              </Select>
+            </FormControl>
 
-          <TextField
-            label="Weeks"
-            type="number"
-            value={weeks}
-            onChange={(e) => setWeeks(e.target.value)}
-            inputProps={{ min: 1, max: 24 }}
-            fullWidth
-          />
+            <TextField
+              label="Weeks"
+              type="number"
+              value={weeks}
+              onChange={(e) => setWeeks(e.target.value)}
+              inputProps={{ min: 1, max: 24 }}
+              fullWidth
+            />
 
-          <Box sx={{ display: "flex", gap: 1.5 }}>
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={analyzeGap}
-              disabled={!roleId || loading}
-              startIcon={loading ? <CircularProgress size={14} /> : <Search />}
-              sx={{ whiteSpace: "nowrap" }}
-            >
-              Analyse gap
-            </Button>
-            <Button
-              variant="contained"
-              onClick={generatePlan}
-              disabled={!roleId || loading}
-              startIcon={loading
-                ? <CircularProgress size={14} sx={{ color: "rgba(0,0,0,0.50)" }} />
-                : <AutoAwesome />
-              }
-              sx={{ whiteSpace: "nowrap" }}
-            >
-              Generate plan
-            </Button>
+            <Box sx={{ display: "flex", gap: 1.5 }}>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={analyzeGap}
+                disabled={!roleId || loading}
+                startIcon={loading ? <CircularProgress size={14} /> : <Search />}
+                sx={{ whiteSpace: "nowrap" }}
+              >
+                Analyse gap
+              </Button>
+              <Button
+                variant="contained"
+                onClick={generatePlan}
+                disabled={!roleId || loading}
+                startIcon={loading
+                  ? <CircularProgress size={14} sx={{ color: "rgba(0,0,0,0.50)" }} />
+                  : <AutoAwesome />
+                }
+                sx={{ whiteSpace: "nowrap" }}
+              >
+                Generate plan
+              </Button>
+            </Box>
           </Box>
         </Box>
       </Paper>
 
 
-      {/* ── Gap analysis ── */}
       {gapResult && (
         <Paper sx={{ p: 3, mb: 2.5 }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 2.5 }}>
@@ -438,8 +446,8 @@ export default function Planner() {
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 2 }}>
             {[
               { key: "missing", label: "Missing", items: grouped.missing },
-              { key: "partial", label: "Partial",  items: grouped.partial },
-              { key: "matched", label: "Matched",  items: grouped.matched },
+              { key: "partial", label: "Partial", items: grouped.partial },
+              { key: "matched", label: "Matched", items: grouped.matched },
             ].map(({ key, label, items }) => (
               <Box key={key}>
                 <Typography sx={{ ...sectionLabel, mb: 1.5 }}>{label}</Typography>
@@ -454,11 +462,9 @@ export default function Planner() {
       )}
 
 
-      {/* ── Learning plan ── */}
       {planResult && (
         <Paper sx={{ p: 0, mb: 2.5, overflow: "hidden" }}>
 
-          {/* Plan header */}
           <Box sx={{
             px: { xs: 2.5, sm: 3 },
             pt: { xs: 2.5, sm: 3 },
@@ -483,7 +489,6 @@ export default function Planner() {
                 </Box>
               </Typography>
 
-              {/* Plan progress */}
               {planProgress && (
                 <Box sx={{ mt: 1.25, minWidth: { xs: "100%", sm: 280 } }}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.6 }}>
@@ -515,7 +520,6 @@ export default function Planner() {
               )}
             </Box>
 
-            {/* Saved plan label + delete */}
             {savedPlanId && (() => {
               const idx = savedPlans.findIndex((p) => Number(p.id) === Number(savedPlanId));
               const planNumber = idx >= 0 ? savedPlans.length - idx : null;
@@ -549,7 +553,6 @@ export default function Planner() {
             })()}
           </Box>
 
-          {/* ── Week tab navigation ── */}
           {totalWeeks > 0 && (
             <Box sx={{
               px: { xs: 2, sm: 2.5 },
@@ -627,11 +630,9 @@ export default function Planner() {
             </Box>
           )}
 
-          {/* ── Week content ── */}
           {currentWeek && (
             <Box sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
 
-              {/* Week title */}
               <Box sx={{ mb: 2.5 }}>
                 <Typography sx={{
                   fontWeight: 720,
@@ -659,11 +660,10 @@ export default function Planner() {
                   textAlign: "center",
                 }}>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                    Light week — focus on review and adding evidence to existing skills.
+                    Light week. Focus on reviewing progress and adding evidence to existing skills.
                   </Typography>
                 </Box>
               ) : (
-                /* ── Skill cards grid ── */
                 <Box sx={{
                   display: "grid",
                   gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
@@ -686,7 +686,6 @@ export default function Planner() {
       )}
 
 
-      {/* ── Saved plans ── */}
       <Paper sx={{ p: 3 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
           <Typography sx={{ fontWeight: 720, fontSize: "0.9375rem" }}>Saved plans</Typography>
@@ -734,17 +733,17 @@ export default function Planner() {
                     color: "text.secondary", fontSize: "0.75rem",
                     display: { md: "none" }, mt: 0.25,
                   }}>
-                    {p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}
+                    {p.created_at ? new Date(p.created_at).toLocaleDateString() : "N/A"}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: { xs: "none", md: "block" } }}>
-                  <Typography variant="body2" sx={{ color: "text.secondary" }}>{p.weeks || "—"}</Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>{p.weeks || "N/A"}</Typography>
                 </Box>
 
                 <Box sx={{ display: { xs: "none", md: "block" } }}>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                    {Number.isFinite(Number(p.progress_pct)) ? `${p.progress_pct}%` : "—"}
+                    {Number.isFinite(Number(p.progress_pct)) ? `${p.progress_pct}%` : "N/A"}
                   </Typography>
                 </Box>
 
@@ -752,7 +751,7 @@ export default function Planner() {
                   color: "text.secondary", fontSize: "0.78rem",
                   display: { xs: "none", md: "block" },
                 }}>
-                  {p.created_at ? new Date(p.created_at).toLocaleString() : "—"}
+                  {p.created_at ? new Date(p.created_at).toLocaleString() : "N/A"}
                 </Typography>
 
                 <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
@@ -774,7 +773,7 @@ export default function Planner() {
                         sx={{ "&:hover": { bgcolor: "rgba(239,68,68,0.12) !important", color: "#fca5a5 !important", borderColor: "rgba(239,68,68,0.25) !important" } }}
                       >
                         {deletingId === p.id
-                          ? <CircularProgress size={13} sx={{ color: "rgba(241,240,255,0.45)" }} />
+                          ? <CircularProgress size={13} sx={{ color: "rgba(241,240,241,0.45)" }} />
                           : <Delete fontSize="small" />
                         }
                       </IconButton>

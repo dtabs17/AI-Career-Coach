@@ -17,6 +17,16 @@ function joinNames(arr, limit = 12) {
   return clipped.join(", ") + (names.length > limit ? "..." : "");
 }
 
+/**
+ * Renders a chip showing whether a role is new or whether its score changed
+ * compared to the previous recommendation run.
+ *
+ * Deltas smaller than 0.05 are suppressed because floating-point rounding in
+ * the scoring calculations can produce negligible differences that would show
+ * misleading +0.0 or -0.0 chips.
+ *
+ * @param {{ roleId: number, finalScore: number, prevItems: Map|null }} props
+ */
 function DeltaPill({ roleId, finalScore, prevItems }) {
   if (!prevItems) return null;
 
@@ -61,6 +71,9 @@ function DeltaPill({ roleId, finalScore, prevItems }) {
   );
 }
 
+/**
+ * Consistent score chip used for competency, bonus, and final score columns.
+ */
 function ScorePill({ value, type }) {
   const styles = {
     amber: { bgcolor: "rgba(245,158,11,0.12)", color: "#fcd34d", border: "1px solid rgba(245,158,11,0.22)" },
@@ -86,6 +99,9 @@ const sectionLabel = {
   fontSize: "0.65rem",
 };
 
+/**
+ * Paginated table of role matches with expandable breakdowns for skills, scoring, and planner shortcuts.
+ */
 export default function RoleRecommendationsTable({
   items,
   prevItems = null,
@@ -325,7 +341,7 @@ export default function RoleRecommendationsTable({
       {totalPages > 1 && (
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1.5, px: 0.5 }}>
           <Typography variant="caption" sx={{ color: "text.secondary" }}>
-            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, items.length)} of {items.length} roles
+            Showing {page * PAGE_SIZE + 1} to {Math.min((page + 1) * PAGE_SIZE, items.length)} of {items.length} roles
           </Typography>
           <Box sx={{ display: "flex", gap: 1 }}>
             <Button

@@ -21,6 +21,18 @@ const emptyPrompts = [
   { icon: <RocketLaunch sx={{ fontSize: 16 }} />, label: "What side projects would make my CV stand out for IT roles?" },
 ];
 
+// renderInline and MarkdownContent are a custom markdown renderer. No external
+// markdown library is used so that each element can be styled precisely using
+// MUI sx props and the app's design tokens, without fighting a third-party
+// component's default styles or adding to the bundle size.
+
+/**
+ * Parses bold (**text**) and inline code (`text`) markers within a single line
+ * and returns an array of plain strings and React elements.
+ *
+ * @param {string} text - A single line of markdown-like content.
+ * @returns {Array<string|React.ReactElement>} Mixed array for inline rendering.
+ */
 function renderInline(text) {
 
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
@@ -43,6 +55,13 @@ function renderInline(text) {
   });
 }
 
+/**
+ * Renders a multi-line markdown string as a tree of styled MUI components.
+ * Supports fenced code blocks, headings (h1-h3), horizontal rules, GitHub-style
+ * checkboxes, nested bullet lists, numbered lists, and plain paragraphs.
+ *
+ * @param {{ content: string }} props
+ */
 function MarkdownContent({ content }) {
   const lines = content.split("\n");
   const output = [];
@@ -206,12 +225,18 @@ function MarkdownContent({ content }) {
 
 
 
+/**
+ * Uses the shared app mark as the assistant avatar across chat surfaces.
+ */
 function CoachAvatar() {
   return <AppIcon size={30} />;
 }
 
 
 
+/**
+ * Renders either a user message or a coach response with role-specific styling.
+ */
 function MessageBubble({ message }) {
   const isUser = message.role !== "assistant";
   const [copied, setCopied] = useState(false);
@@ -311,13 +336,20 @@ function MessageBubble({ message }) {
 
 
 
+/**
+ * Shows starter prompts and a lightweight reminder that profile context is already loaded.
+ */
 function EmptyState({ onPrompt, coachContext }) {
-  const contextPills = coachContext ? [
-    coachContext.name && { label: coachContext.name },
-    coachContext.skillCount > 0 && { label: `${coachContext.skillCount} skill${coachContext.skillCount !== 1 ? "s" : ""} in your profile` },
-    ...(coachContext.preferredRoles.map((r) => ({ label: r }))),
-    coachContext.course && { label: coachContext.course },
-  ].filter(Boolean) : [];
+  // Only the presence of context matters, not the individual items, so a boolean
+  // is enough. The full array was never rendered; only its length was checked.
+  const hasContext = Boolean(
+    coachContext && (
+      coachContext.name ||
+      coachContext.skillCount > 0 ||
+      coachContext.preferredRoles.length > 0 ||
+      coachContext.course
+    )
+  );
 
   return (
     <Box sx={{
@@ -340,11 +372,11 @@ function EmptyState({ onPrompt, coachContext }) {
       <Typography sx={{ fontSize: "1.25rem", fontWeight: 750, letterSpacing: "-0.02em", mb: 0.75 }}>
         What's on your mind?
       </Typography>
-      <Typography sx={{ fontSize: "0.875rem", color: "text.secondary", maxWidth: 480, mb: contextPills.length > 0 ? 2 : 3.5 }}>
+      <Typography sx={{ fontSize: "0.875rem", color: "text.secondary", maxWidth: 480, mb: hasContext ? 2 : 3.5 }}>
         I'm your AI career coach. Ask me anything about your skills, career path, or interview prep.
       </Typography>
 
-      {contextPills.length > 0 && (
+      {hasContext && (
         <Typography sx={{
           fontSize: "0.78rem",
           color: "rgba(241,240,255,0.25)",
@@ -418,6 +450,10 @@ export default function Chat() {
 
   const [coachContext, setCoachContext] = useState(null);
 
+  // Fetch the user's profile and skills on mount so the empty state can show
+  // personalised context pills (name, skill count, preferred roles, course).
+  // This runs independently of session loading and failures are silently ignored
+  // since it is purely cosmetic.
   useEffect(() => {
     (async () => {
       try {
@@ -442,10 +478,13 @@ export default function Chat() {
 
   const messagesEndRef = useRef(null);
 
+  // Auto-scroll after new messages render so the latest assistant reply stays in view.
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
 
+  // The sidebar list is also the source of truth for the currently selected
+  // session, so this loader optionally re-selects the newest available chat.
   async function loadSessions({ selectFirst = true } = {}) {
     setErr("");
     setLoadingSessions(true);
@@ -481,6 +520,8 @@ export default function Chat() {
     }
   }
 
+  // Chat creation is intentionally lightweight. The first real message still
+  // drives the generated title and full session history on the backend.
   async function createSession() {
     setErr("");
     try {
@@ -505,6 +546,8 @@ export default function Chat() {
     await loadMessages(sessionId);
   }
 
+  // Messages are sent through the active session when one exists, or through a
+  // just-created session for first-time prompts from the empty state.
   async function send(contentOverride) {
     const content = String(contentOverride ?? text ?? "").trim();
     if (!content) return;
@@ -517,6 +560,8 @@ export default function Chat() {
 
     setErr("");
     setSending(true);
+    // Warn the user before they navigate away while the API call is in flight,
+    // since leaving at this point would produce a visible message with no reply.
     window.onbeforeunload = () => "The coach is still writing a response.";
     try {
       const out = await api(`/api/chat/sessions/${sessionId}/messages`, {
@@ -589,6 +634,8 @@ export default function Chat() {
     }
   }
 
+  // Load the saved conversation list once on entry and hydrate the newest chat
+  // so the page opens with a usable conversation when history exists.
   useEffect(() => {
     loadSessions({ selectFirst: true });
 
@@ -783,6 +830,9 @@ export default function Chat() {
               const id = await createSession();
               if (!id) return;
               setText(p);
+              // The 80ms delay allows React to commit the new session state and
+              // re-render before send() reads activeId, avoiding a race where
+              // send() would create a second session because activeId was still null.
               setTimeout(() => send(p), 80);
             }} />
           ) : loadingMessages ? (

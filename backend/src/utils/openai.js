@@ -1,8 +1,20 @@
 const { parseEvaluationResponse } = require("./openai_utils");
 
 
+// Module-level singleton. The OpenAI client is initialised once and reused
+// across all requests. Storing a promise rather than the resolved client means
+// concurrent calls on startup will all await the same initialisation rather
+// than creating multiple instances.
 let clientPromise = null;
 
+/**
+ * Returns a shared OpenAI client instance, initialising it on the first call.
+ *
+ * The openai package is imported dynamically because it is an ES module and
+ * cannot be required with CommonJS require() at the top level.
+ *
+ * @returns {Promise<import("openai").default>} Resolved OpenAI client.
+ */
 async function getClient() {
   if (clientPromise) return clientPromise;
 
@@ -20,6 +32,16 @@ async function getClient() {
   return clientPromise;
 }
 
+/**
+ * Calls the OpenAI chat completions API and returns a career coaching reply
+ * personalised to the student's profile and current skill set.
+ *
+ * @param {object} params
+ * @param {Array<{role: string, content: string}>} params.messages - Conversation history to send.
+ * @param {object|null} params.profile - Student profile from the profiles table.
+ * @param {Array<{name: string, proficiency_level: number}>} params.skills - User's saved skills.
+ * @returns {Promise<string>} The assistant's reply text.
+ */
 async function generateCoachReply({ messages, profile, skills }) {
   const client = await getClient();
 
@@ -39,6 +61,8 @@ async function generateCoachReply({ messages, profile, skills }) {
     ].join("\n")
     : "No profile saved yet.";
 
+  // Skills are capped at 50 entries to stay within the model's context budget
+  // without meaningfully reducing the quality of coaching advice.
   const skillLine =
     skills && skills.length
       ? skills
@@ -63,6 +87,7 @@ async function generateCoachReply({ messages, profile, skills }) {
     skillLine,
   ].join("\n");
 
+  // The "developer" role is used instead of "system" as required by the GPT-4o API.
   const completion = await client.chat.completions.create({
     model,
     messages: [{ role: "developer", content: instructions }, ...messages],
@@ -73,6 +98,20 @@ async function generateCoachReply({ messages, profile, skills }) {
   return (text || "").trim();
 }
 
+/**
+ * Generates a single interview question for the given role and turn number.
+ *
+ * In mixed mode, questions alternate between technical and behavioral so the
+ * session covers both types across its full length.
+ *
+ * @param {object} params
+ * @param {string} params.roleTitle - Title of the career role being interviewed for.
+ * @param {string} params.mode - One of "technical", "behavioral", or "mixed".
+ * @param {number} params.turnNumber - Current question number (1-indexed).
+ * @param {number} params.totalQuestions - Total number of questions in the session.
+ * @param {Array<{turn_number: number, question: string}>} params.previousTurns - Earlier questions, used to avoid repetition.
+ * @returns {Promise<string>} The generated question text.
+ */
 async function generateInterviewQuestion({ roleTitle, mode, turnNumber, totalQuestions, previousTurns }) {
   const client = await getClient();
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
@@ -121,6 +160,21 @@ Return ONLY the question text, no preamble.`;
   return (question || "Tell me about yourself and why you're interested in this role.").trim();
 }
 
+/**
+ * Sends a candidate's answer to the OpenAI API for evaluation and returns a
+ * rating and written feedback.
+ *
+ * response_format is set to json_object to use OpenAI's structured output mode,
+ * which guarantees the response is valid JSON. This avoids parsing failures that
+ * occur when the model wraps its output in markdown code fences.
+ *
+ * @param {object} params
+ * @param {string} params.question - The interview question that was asked.
+ * @param {string} params.answer - The candidate's answer text.
+ * @param {string} params.roleTitle - Title of the role being interviewed for.
+ * @param {string} params.mode - Interview mode ("technical", "behavioral", or "mixed").
+ * @returns {Promise<{rating: number, feedback: string}>} Parsed evaluation result.
+ */
 async function evaluateAnswer({ question, answer, roleTitle, mode }) {
   const client = await getClient();
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";

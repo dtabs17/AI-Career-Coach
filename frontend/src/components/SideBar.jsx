@@ -52,6 +52,9 @@ const labelProps = (isActive) => ({
   color: "inherit",
 });
 
+/**
+ * Sidebar navigation item that can notify the mobile drawer when a route is selected.
+ */
 function NavItem({ to, end = false, icon, label, indent = false }) {
   const { onNavigate } = useContext(NavContext);
   return (
@@ -75,6 +78,9 @@ function NavItem({ to, end = false, icon, label, indent = false }) {
   );
 }
 
+/**
+ * Uppercase label used to separate logical groups within the sidebar.
+ */
 function SectionLabel({ children }) {
   return (
     <Typography sx={{
@@ -90,6 +96,9 @@ function SectionLabel({ children }) {
   );
 }
 
+/**
+ * Shared sidebar body used in both the desktop rail and the mobile drawer.
+ */
 function SidebarContent({ onNavigate }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
@@ -99,12 +108,14 @@ function SidebarContent({ onNavigate }) {
 
   const inRecsSection = pathname.startsWith("/recommendations");
   const [recsOpen, setRecsOpen] = useState(false);
+  // Keep the recommendations sub-menu open while the user moves between its child routes.
   const recsExpanded = inRecsSection || recsOpen;
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
 
+  // Fetch sidebar stats on demand to avoid extra dashboard requests on every page load.
   const openStats = useCallback(async (e) => {
     setAnchorEl(e.currentTarget);
     setStatsLoading(true);
@@ -140,6 +151,8 @@ function SidebarContent({ onNavigate }) {
         lastRun,
       });
     } catch {
+      // Stats are supplemental to navigation, so failures should not block the
+      // drawer or leave it stuck in a loading state.
       setStats(null);
     } finally {
       setStatsLoading(false);
@@ -331,6 +344,9 @@ function SidebarContent({ onNavigate }) {
   );
 }
 
+/**
+ * Responsive dashboard navigation that renders as a drawer on small screens.
+ */
 export default function Sidebar({ mobileOpen = false, onClose = () => { } }) {
   return (
     <>

@@ -8,6 +8,9 @@ import {
 import { Add, Save, CheckCircle, RadioButtonUnchecked } from "@mui/icons-material";
 import { useToast } from "../toast/ToastContext";
 
+/**
+ * Deduplicates string arrays while preserving the original casing of the first match.
+ */
 function uniq(arr) {
   const out = [];
   const seen = new Set();
@@ -22,6 +25,10 @@ function uniq(arr) {
   return out;
 }
 
+/**
+ * Normalises optional API values to arrays so the form can treat profile data
+ * consistently whether the backend returns null or a populated list.
+ */
 function asArray(value) {
   if (!value) return [];
   if (Array.isArray(value)) return uniq(value);
@@ -54,6 +61,9 @@ const chipSx = {
 };
 
 
+/**
+ * Small checklist row used in the profile completion summary card.
+ */
 function CompletionItem({ label, done }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -73,7 +83,9 @@ function CompletionItem({ label, done }) {
 }
 
 
-/* ── Reusable picker panel for technologies + roles ── */
+/**
+ * Shared picker used for preferred technologies and preferred roles.
+ */
 function PickerPanel({ title, subtitle, searchLabel, selectLabel, searchValue, onSearchChange,
   options, pickValue, onPickChange, onAdd, addDisabled, items, onRemove }) {
   return (
@@ -83,7 +95,6 @@ function PickerPanel({ title, subtitle, searchLabel, selectLabel, searchValue, o
         {subtitle}
       </Typography>
 
-      {/* Step 1: search filter */}
       <TextField
         label={searchLabel}
         value={searchValue}
@@ -94,7 +105,6 @@ function PickerPanel({ title, subtitle, searchLabel, selectLabel, searchValue, o
         placeholder="Type to filter..."
       />
 
-      {/* Step 2: select + add */}
       <Box sx={{ display: "flex", gap: 1, mb: 2.5 }}>
         <FormControl fullWidth size="small">
           <InputLabel>{selectLabel}</InputLabel>
@@ -105,7 +115,7 @@ function PickerPanel({ title, subtitle, searchLabel, selectLabel, searchValue, o
           >
             <MenuItem value="">
               <em style={{ color: "rgba(241,240,255,0.38)", fontStyle: "normal" }}>
-                {options.length === 0 ? "No results — try a different search" : `${options.length} option${options.length !== 1 ? "s" : ""} available`}
+                {options.length === 0 ? "No results, try a different search" : `${options.length} option${options.length !== 1 ? "s" : ""} available`}
               </em>
             </MenuItem>
             {options.map((opt) => (
@@ -125,7 +135,6 @@ function PickerPanel({ title, subtitle, searchLabel, selectLabel, searchValue, o
         </Button>
       </Box>
 
-      {/* Selected items */}
       {items.length > 0 ? (
         <Box>
           <Typography sx={{ ...sectionLabel, mb: 1 }}>Selected</Typography>
@@ -160,6 +169,9 @@ function PickerPanel({ title, subtitle, searchLabel, selectLabel, searchValue, o
 }
 
 
+/**
+ * Collects profile details and preference data used across recommendations, chat, and planning.
+ */
 export default function Profile() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
@@ -287,7 +299,6 @@ export default function Profile() {
   return (
     <Box className="page-animate page-content">
 
-      {/* ── Page header ── */}
       <Box sx={{
         pb: 3, mb: 3,
         borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -303,7 +314,6 @@ export default function Profile() {
             A complete profile gives the coach more context and improves your recommendation accuracy.
           </Typography>
 
-          {/* Completion bar */}
           <Box sx={{ maxWidth: 420 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.75 }}>
               <Typography sx={{ fontSize: "0.75rem", color: "text.secondary", fontWeight: 600 }}>
@@ -336,7 +346,6 @@ export default function Profile() {
 
       <Box component="form" onSubmit={save}>
 
-        {/* ── Basic info + checklist ── */}
         <Box sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", lg: "1fr 280px" },
@@ -398,7 +407,6 @@ export default function Profile() {
             />
           </Paper>
 
-          {/* Checklist sidebar */}
           <Paper sx={{ p: 2.5 }}>
             <Typography sx={{ ...sectionLabel, mb: 1.5 }}>Checklist</Typography>
             <Box sx={{ display: "grid", gap: 1.25 }}>
@@ -418,7 +426,6 @@ export default function Profile() {
           </Paper>
         </Box>
 
-        {/* ── Preferred technologies + roles ── */}
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2.5, mb: 2.5 }}>
 
           <PickerPanel
@@ -454,7 +461,6 @@ export default function Profile() {
           />
         </Box>
 
-        {/* ── Save ── */}
         <Box sx={{ display: "flex", gap: 1.5 }}>
           <Button
             type="submit"

@@ -1,8 +1,16 @@
+/**
+ * Interview session routes for creating mock interviews, submitting answers,
+ * and reviewing completed sessions.
+ */
 const router = require("express").Router();
 const { pool } = require("../db");
 const { requireAuth } = require("../middleware/auth_middleware");
 const { generateInterviewQuestion, evaluateAnswer } = require("../utils/openai");
 
+/**
+ * Ensures the requested interview session belongs to the authenticated user
+ * before any turn data is read or mutated.
+ */
 async function assertSessionOwner(client, sessionId, userId) {
   const { rows } = await client.query(
     `SELECT * FROM interview_sessions WHERE id = $1`,
@@ -84,6 +92,8 @@ router.post("/sessions", requireAuth, async (req, res, next) => {
       );
       const role = roleRows[0];
 
+      // The first question is generated and persisted inside the same transaction
+      // so the session is never left in a state where it has no turn to display.
       const firstQuestion = await generateInterviewQuestion({
         roleTitle: role?.title || "Unknown Role",
         mode,
@@ -92,7 +102,6 @@ router.post("/sessions", requireAuth, async (req, res, next) => {
         previousTurns: [],
       });
 
-
       const { rows: turnRows } = await client.query(
         `INSERT INTO interview_turns 
          (session_id, turn_number, question)
@@ -100,7 +109,6 @@ router.post("/sessions", requireAuth, async (req, res, next) => {
          RETURNING *`,
         [session.id, firstQuestion]
       );
-
 
       await client.query(
         `UPDATE interview_sessions SET current_question_number = 1 WHERE id = $1`,
@@ -140,7 +148,6 @@ router.get("/sessions/:id", requireAuth, async (req, res, next) => {
         return res.status(check.status).json({ error: check.error });
       }
 
-
       const { rows: sessionRows } = await client.query(
         `SELECT 
           s.*, 
@@ -151,7 +158,6 @@ router.get("/sessions/:id", requireAuth, async (req, res, next) => {
          WHERE s.id = $1`,
         [sessionId]
       );
-
 
       const { rows: turns } = await client.query(
         `SELECT * FROM interview_turns 
@@ -250,6 +256,7 @@ router.post("/sessions/:id/answer", requireAuth, async (req, res, next) => {
       let nextTurn = null;
 
       if (!isLastQuestion) {
+        // Pass all answered turns so far so the model can avoid repeating topics.
         const { rows: previousTurnsRows } = await client.query(
           `SELECT turn_number, question, user_answer, ai_rating 
            FROM interview_turns 
@@ -283,7 +290,8 @@ router.post("/sessions/:id/answer", requireAuth, async (req, res, next) => {
           [currentTurnNumber + 1, sessionId]
         );
       } else {
-
+        // Last question answered: calculate the average score across all turns
+        // and mark the session as completed.
         const { rows: avgRows } = await client.query(
           `SELECT AVG(ai_rating) as avg_score 
            FROM interview_turns 
@@ -367,6 +375,9 @@ router.get("/voices", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ElevenLabs voice ID for "Eric", used for all interview question narration.
+// Hardcoded to ensure a consistent listening experience across all sessions.
+// The eleven_turbo_v2_5 model is used for low-latency streaming on the TTS endpoint.
 const INTERVIEW_VOICE_ID = "cjVigY5qzO86Huf0OWal";
 
 router.post("/tts", requireAuth, async (req, res, next) => {

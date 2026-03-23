@@ -1,3 +1,6 @@
+/**
+ * Express entry point for the API and production SPA host.
+ */
 require("dotenv").config();
 const express = require("express");
 const cookieParser = require("cookie-parser");
@@ -6,12 +9,16 @@ const path = require("path");
 
 const app = express();
 const isProd = process.env.NODE_ENV === "production";
+
+// Respect the upstream proxy in production so secure cookies and IP-related
+// Express helpers behave correctly behind Render or a similar platform.
 if (isProd) app.set("trust proxy", 1);
 
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
 
+// CORS is only needed during local frontend-to-backend development.
 if (!isProd && process.env.CORS_ORIGIN) {
   app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
 }
@@ -27,6 +34,8 @@ app.use("/api/planner", require("./routes/planner"));
 app.use("/api/interviews", require("./routes/interview"));
 
 
+// In production the same Express process serves the built React app and
+// falls back to index.html for client-side routes.
 if (isProd) {
   const distPath = path.join(__dirname, "..", "..", "frontend", "dist");
   console.log("Serving frontend from:", distPath);
@@ -38,6 +47,8 @@ if (isProd) {
   });
 }
 
+// Keep internal errors opaque in production while preserving full messages
+// locally to speed up debugging.
 app.use((err, req, res, next) => {
   console.error(err);
   const message =

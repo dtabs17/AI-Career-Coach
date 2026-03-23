@@ -4,6 +4,17 @@ const jwt = require("jsonwebtoken");
 const { pool } = require("../db");
 const { requireAuth } = require("../middleware/auth_middleware");
 
+/**
+ * Converts a JWT expiry string (e.g. "7d", "2h", "30m") into milliseconds.
+ * Used to keep the cookie maxAge in sync with the token expiry so both expire
+ * at the same time.
+ *
+ * Falls back to 7 days if the string is missing or does not match the expected
+ * format. Supported units: ms, s, m, h, d, w.
+ *
+ * @param {string} s - Expiry string, e.g. "7d" or "3600s".
+ * @returns {number} Duration in milliseconds.
+ */
 function parseExpiryMs(s) {
   if (!s) return 7 * 24 * 60 * 60 * 1000;
   const match = String(s).match(/^(\d+)(ms|s|m|h|d|w)?$/);
@@ -14,6 +25,23 @@ function parseExpiryMs(s) {
   return n * (mul[unit] || 1000);
 }
 
+/**
+ * Signs a JWT for the given user and sets it as an HttpOnly cookie on the response.
+ *
+ * Cookie flags:
+ *   httpOnly  - prevents client-side JavaScript from reading the token.
+ *   sameSite  - set to "lax" to allow the cookie on top-level navigations while
+ *               blocking it on cross-site requests, which mitigates CSRF without
+ *               requiring an explicit CSRF token.
+ *   secure    - only sent over HTTPS in production; left off in development so
+ *               the app works over plain HTTP locally.
+ *
+ * The userId is cast to a string because the JWT sub claim must be a string
+ * per the JWT specification (RFC 7519).
+ *
+ * @param {import("express").Response} res
+ * @param {number|string} userId - The authenticated user's database ID.
+ */
 function setAuthCookie(res, userId) {
   const expiresIn = process.env.JWT_EXPIRES_IN || "7d";
   const token = jwt.sign({}, process.env.JWT_SECRET, {
@@ -37,6 +65,8 @@ router.post("/register", async (req, res, next) => {
     const existing = await pool.query(`SELECT id FROM users WHERE email = $1`, [email]);
     if (existing.rowCount) return res.status(409).json({ error: "Email already in use" });
 
+    // Salt rounds of 12 gives a good balance between hashing time and security.
+    // Values below 10 are considered too weak; values above 14 add noticeable latency.
     const passwordHash = await bcrypt.hash(password, 12);
 
     const created = await pool.query(
@@ -102,6 +132,8 @@ router.get("/me", requireAuth, async (req, res, next) => {
       firstName = fullName.trim().split(/\s+/)[0] || null;
     }
 
+    // If no full name is saved yet, derive a display name from the email local part
+    // so the UI always has something to show rather than falling back to "Unknown".
     if (!firstName && user?.email) {
       const raw = user.email.split("@")[0];
       firstName = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : null;
