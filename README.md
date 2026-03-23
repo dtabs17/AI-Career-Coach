@@ -2,40 +2,40 @@
 
 ## Overview
 
-Personal AI Career Coach for IT Students is a full stack web application that helps computing students understand where they currently stand, what roles they are closest to, and what to work on next.
+Personal AI Career Coach for IT Students is a full stack web application built to help computing students understand where they currently stand, which entry-level roles align with their current skill set, and what they should work on next.
 
-The system combines structured skills data, role requirements, deterministic recommendation logic, and AI-assisted guidance in one workflow. A student can build a personal skills profile, save academic and career preferences, generate role recommendations, review missing skills, create a multi-week learning plan, ask career-focused questions in chat, and complete mock interviews with AI-generated questions and feedback.
+The application combines structured skills data, seeded role requirements, deterministic recommendation logic, and AI-assisted guidance in a single workflow. Users can build a personal skills profile, store career preferences, generate role recommendations, review missing skills, create a multi-week development plan, ask career-focused questions in chat, and complete mock interviews with AI-generated questions and feedback.
 
-This repository is split into a React frontend and an Express/PostgreSQL backend. In production, the backend serves the built frontend and exposes the API under `/api`.
+The project is organised as a React frontend and an Express/PostgreSQL backend. In production, the backend serves the built frontend and exposes the API under `/api`.
 
 ## What the application does
 
-The application supports five main workflows:
+The application supports five core workflows:
 
-1. **Build a student profile**
-   - Register and sign in using cookie-based authentication.
-   - Save profile details such as course, year of study, academic focus, interests, preferred technologies, and preferred roles.
+1. **Profile and skills setup**
+   - Register and sign in with cookie-based authentication.
+   - Save profile data such as course, year of study, academic focus, interests, preferred technologies, and preferred roles.
    - Add personal skills with a proficiency level from 1 to 5 and optional evidence.
 
-2. **Generate role recommendations**
-   - Compare a student’s saved skills against seeded role requirements.
-   - Score roles using a weighted competency model.
+2. **Role recommendations**
+   - Compare saved user skills against seeded role requirements.
+   - Score roles using a deterministic, importance-weighted competency model.
    - Apply bounded preference bonuses for preferred roles and preferred technologies.
    - Store recommendation runs so results can be revisited later.
 
-3. **Plan skill development**
-   - Run a gap analysis against a target role.
+3. **Skill-gap planning**
+   - Run a gap analysis against a selected target role.
    - Classify required skills as matched, partial, or missing.
    - Generate a deterministic learning plan across a selected number of weeks.
-   - Save plans as progress entries for later review.
+   - Save generated plans for later review.
 
-4. **Use AI-assisted coaching**
+4. **AI-assisted career coaching**
    - Start and manage chat sessions.
-   - Ask career-focused questions with profile and skills passed as context.
-   - Receive practical, action-oriented responses rather than long technical tutorials.
+   - Ask career-focused questions with saved profile and skills passed as context.
+   - Receive practical, action-oriented responses instead of long generic explanations.
 
-5. **Practice interviews**
-   - Start mock interviews for a chosen role.
+5. **Mock interviews**
+   - Start interview sessions for a selected role.
    - Use technical, behavioral, or mixed interview modes.
    - Generate one question at a time and evaluate answers with structured AI feedback.
    - Persist interview history, per-turn feedback, and average session score.
@@ -50,9 +50,9 @@ The application supports five main workflows:
 
 ### Recommendation engine
 - Deterministic role scoring based on required skill coverage.
-- Importance-weighted competency score.
-- Separate preference bonus that cannot overpower the base competency score.
-- Result caching using a canonical snapshot hash.
+- Importance-weighted competency scoring.
+- Preference bonuses that support ranking without overpowering the base competency score.
+- Result caching using a canonical input snapshot hash.
 - Recommendation history so users can compare runs over time.
 
 ### Planner
@@ -63,9 +63,9 @@ The application supports five main workflows:
 
 ### Chat
 - Multi-session chat history.
-- Automatic chat title generation from the first message.
+- Automatic chat title generation from the first user message.
 - AI replies grounded in saved profile data and saved skills.
-- Fallback response handling when the model returns unusable output.
+- Fallback handling when the model response is empty or unusable.
 
 ### Interviews
 - Session-based mock interviews.
@@ -76,7 +76,7 @@ The application supports five main workflows:
 
 ### Frontend experience
 - Public landing flow plus authenticated dashboard shell.
-- React Router navigation for both public and protected routes.
+- React Router navigation for public and protected routes.
 - MUI-based interface with a custom theme.
 - Floating chat shortcut from the dashboard.
 - Service worker registration and install prompt handling for PWA-style installation.
@@ -87,7 +87,7 @@ The application supports five main workflows:
 The frontend is a React application built with Vite. It uses React Router for navigation, Material UI for the component layer, and a custom theme and CSS layer for the application look and feel. Authentication state is managed in a shared provider, and toast notifications are handled through a dedicated toast provider.
 
 ### Backend
-The backend is an Express application with PostgreSQL as the primary datastore. It exposes route groups for authentication, skills, profile data, user skills, roles, recommendations, planner operations, chat sessions, and interviews. In production it also serves the built frontend from the `frontend/dist` directory.
+The backend is an Express application backed by PostgreSQL. It exposes route groups for authentication, skills, profile data, user skills, roles, recommendations, planner operations, chat sessions, and interviews. In production it also serves the compiled frontend from the `frontend/dist` directory.
 
 ### Database
 The application uses PostgreSQL tables for:
@@ -125,7 +125,7 @@ The application uses PostgreSQL tables for:
 
 ## Repository layout
 
-The repository is expected to follow a split frontend/backend structure similar to this:
+The repository uses a split frontend/backend layout:
 
 ```text
 .
@@ -151,24 +151,24 @@ The repository is expected to follow a split frontend/backend structure similar 
 └── README.md
 ```
 
-## Database schema and seed files
+## Database files
 
-This repository includes multiple SQL files. The recommended setup is:
+The SQL files in the repository serve different purposes:
 
-- `ai_career_coach.sql` for the schema, constraints, triggers, indexes, and foreign keys.
-- `lookup_seed.sql` for the current lookup data, including career roles, skills, and role-to-skill requirements.
+- `ai_career_coach.sql` contains the schema, constraints, indexes, triggers, and foreign keys.
+- `lookup_seed.sql` contains the lookup data required by the application, including `career_roles`, `skills`, and `role_skills`.
 
-`export_seed.sql` appears to be an older export and is not needed for the standard local setup if `lookup_seed.sql` is used.
+For a fresh local setup, import `ai_career_coach.sql` first and `lookup_seed.sql` second.
 
 ## Local development setup
 
 ### Prerequisites
 
-Make sure the following are installed locally:
+Install the following before starting:
 
-- Node.js 18+
+- Node.js 18 or newer
 - npm
-- PostgreSQL 15+ or compatible
+- PostgreSQL
 
 ### 1. Install dependencies
 
@@ -194,7 +194,7 @@ Create a PostgreSQL database:
 createdb ai_career_coach
 ```
 
-If you prefer, create it manually in `psql` or a PostgreSQL GUI and use the same name in your environment variables.
+You can also create the database in pgAdmin or another PostgreSQL GUI, as long as the database name matches your environment configuration.
 
 ### 3. Import the schema
 
@@ -212,7 +212,7 @@ psql -d ai_career_coach -f lookup_seed.sql
 
 Create a `.env` file inside `backend/`.
 
-#### Option A: local PostgreSQL settings
+#### Option A: discrete local PostgreSQL settings
 
 ```env
 NODE_ENV=development
@@ -240,8 +240,8 @@ CORS_ORIGIN=http://localhost:5173
 JWT_SECRET=replace_this_with_a_real_secret
 JWT_EXPIRES_IN=7d
 COOKIE_NAME=access_token
-DATABASE_URL=postgres://user:password@host:5432/ai_career_coach
-DB_SSL=require
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/ai_career_coach
+PGSSLMODE=disable
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL=gpt-4o-mini
 ELEVENLABS_API_KEY=your_elevenlabs_api_key
@@ -254,200 +254,142 @@ cd backend
 npm run dev
 ```
 
-This starts the Express API with Nodemon.
-
 ### 7. Start the frontend
-
-In a second terminal:
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-### 8. Open the app
+By default, the frontend runs on Vite's development server and the backend listens on port `3001`.
 
-By default:
-- frontend: `http://localhost:5173`
-- backend: `http://localhost:3001`
+## Scripts
 
-## Running in production
+### Backend scripts
 
-The backend is designed to serve the frontend build in production.
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the backend with Nodemon |
+| `npm start` | Start the backend with Node |
+| `npm test` | Run the backend Jest test suite |
 
-Build the frontend:
+### Frontend scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite development server |
+| `npm run build` | Create a production build |
+| `npm run preview` | Preview the production build locally |
+| `npm run lint` | Run ESLint |
+
+## Production run
+
+Build the frontend first:
 
 ```bash
 cd frontend
 npm run build
 ```
 
-Start the backend in production mode:
+Then start the backend in production mode:
 
 ```bash
-cd ../backend
-npm start
+cd backend
+NODE_ENV=production npm start
 ```
 
-With `NODE_ENV=production`, the backend serves the built frontend from `frontend/dist` and exposes the API under the same origin.
+In production mode, the backend serves the compiled frontend and also exposes the API routes.
 
-## Environment variables
+## API overview
 
-### Required for the backend
+This is the main application surface exposed by the backend.
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `JWT_SECRET` | Yes | Signs and verifies authentication tokens. |
-| `OPENAI_API_KEY` | Yes for chat/interview AI | Enables OpenAI-powered coaching and interview logic. |
-| `PORT` | No | Backend port. Defaults to `3001`. |
-| `JWT_EXPIRES_IN` | No | Token and cookie expiry. Defaults to `7d`. |
-| `COOKIE_NAME` | No | Auth cookie name. Defaults to `access_token`. |
-| `CORS_ORIGIN` | Recommended in development | Allowed frontend origin for local development. |
-| `DATABASE_URL` | Yes if not using discrete DB vars | PostgreSQL connection string. |
-| `DB_SSL` | No | Enables SSL when needed for hosted databases. |
-| `DB_HOST` | Yes if not using `DATABASE_URL` | Local PostgreSQL host. |
-| `DB_PORT` | No | Local PostgreSQL port. Defaults to `5432`. |
-| `DB_NAME` | Yes if not using `DATABASE_URL` | Database name. |
-| `DB_USER` | Yes if not using `DATABASE_URL` | Database user. |
-| `DB_PASSWORD` | Yes if not using `DATABASE_URL` | Database password. |
-| `OPENAI_MODEL` | No | Model override. Defaults to `gpt-4o-mini`. |
-| `ELEVENLABS_API_KEY` | Optional | Enables interview voice listing and TTS narration. |
+### Auth
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 
-### Frontend environment variables
+### Skills and profile
+- `GET /api/skills`
+- `GET /api/skills/:id/roles`
+- `GET /api/user-skills`
+- `POST /api/user-skills`
+- `DELETE /api/user-skills/:skillId`
+- `GET /api/profile`
+- `PUT /api/profile`
+- `GET /api/roles`
 
-No required frontend environment variables were present in the uploaded frontend source. The frontend API client uses relative `/api` paths.
+### Recommendations
+- `POST /api/recommendations/run`
+- `GET /api/recommendations/runs`
+- `GET /api/recommendations/runs/:runId`
 
-## API surface
+### Planner
+- `GET /api/planner/gap/:roleId`
+- `POST /api/planner/plan`
+- `GET /api/planner/plans`
+- `GET /api/planner/plans/:id`
+- `DELETE /api/planner/plans/:id`
 
-The backend exposes these route groups:
+### Chat
+- `GET /api/chat/sessions`
+- `POST /api/chat/sessions`
+- `PATCH /api/chat/sessions/:sessionId`
+- `DELETE /api/chat/sessions/:sessionId`
+- `GET /api/chat/sessions/:sessionId/messages`
+- `POST /api/chat/sessions/:sessionId/messages`
 
-- `/api/auth`
-- `/api/skills`
-- `/api/user-skills`
-- `/api/profile`
-- `/api/recommendations`
-- `/api/roles`
-- `/api/chat`
-- `/api/planner`
-- `/api/interviews`
-
-This README is intentionally high level. Route implementation details belong in dedicated API docs if the project is expanded further.
+### Interviews
+- `GET /api/interviews/sessions`
+- `POST /api/interviews/sessions`
+- `GET /api/interviews/sessions/:id`
+- `POST /api/interviews/sessions/:id/answer`
+- `DELETE /api/interviews/sessions/:id`
+- `GET /api/interviews/voices`
+- `POST /api/interviews/tts`
 
 ## Authentication and security notes
 
-- Authentication is cookie-based, not localStorage token-based.
-- JWTs are stored in HttpOnly cookies.
-- Cookies use `SameSite=Lax`.
-- Cookies are marked `secure` only in production.
+- Authentication is cookie-based rather than localStorage token-based.
+- The backend sets the JWT inside an HttpOnly cookie.
+- `SameSite=Lax` is used by default.
+- Cookies are marked `Secure` in production.
 - Passwords are hashed with bcrypt before storage.
-- Protected endpoints are enforced through middleware that reads the JWT from the cookie.
+- Authenticated frontend requests include credentials.
 
-## Recommendation logic
+## Recommendation engine notes
 
-The recommendation engine is not a pure LLM ranker. It is a deterministic scoring system.
+The recommendation pipeline is designed to be explainable and stable:
 
-At a high level it:
-- loads the user’s saved skills
-- loads the selected profile preferences
-- compares the user’s proficiency levels against each role’s required skills
-- computes an importance-weighted competency score
-- adds a bounded preference bonus for preferred roles and overlapping preferred technologies
-- stores the run and result items for later retrieval
-- uses a canonical snapshot hash to return cached results when the exact same inputs are submitted again
+- it scores each role against saved user skills and required role skills
+- it applies profile-based preference bonuses separately from the raw competency score
+- it stores recommendation runs and items so results can be revisited later
+- it caches repeated runs using an input snapshot hash and algorithm version
 
-The API returns three views:
-- best fit
-- best fit plus preferences
-- preferred roles alignment
+This keeps recommendation ranking deterministic and reviewable while still allowing AI features elsewhere in the product.
 
-## Planner logic
+## Testing and code quality
 
-The planner uses role requirements plus current user proficiency to build a gap analysis and generate a structured learning plan.
+The current repository scripts support:
 
-Each required skill is classified as:
-- `matched`
-- `partial`
-- `missing`
+- backend Jest tests via `npm test`
+- frontend linting via `npm run lint`
+- frontend production build verification via `npm run build`
 
-The readiness percentage is calculated as an importance-weighted ratio of current skill level to required skill level, capped at the requirement threshold. Plan generation is deterministic so identical inputs produce identical weekly outputs.
+The current backend test suite covers core pure-logic areas such as:
 
-## AI integrations
+- recommendation scoring
+- planner logic
+- OpenAI response parsing utilities
 
-### Career chat
-The chat system sends the last portion of the conversation, the saved student profile, and the student’s saved skills to the OpenAI API. The prompt is intentionally constrained to career guidance and next-step advice rather than code generation.
+## Notes for maintainers
 
-### Mock interviews
-The interview system uses OpenAI twice:
-- to generate role-appropriate interview questions
-- to evaluate submitted answers and return a numeric rating plus targeted written feedback
+- The frontend and backend are intentionally coupled around relative `/api` paths.
+- The backend supports both `DATABASE_URL` deployments and local multi-variable PostgreSQL configuration.
+- The interview TTS route currently uses a fixed ElevenLabs voice ID for a consistent question-reading experience.
+- Planner data is persisted in `progress_entries` using the `learning_plan` type discriminator.
 
-In mixed mode, question generation alternates between technical and behavioral prompts.
+## Project status
 
-### Interview narration
-If `ELEVENLABS_API_KEY` is set, the interview module can fetch available voices and stream narrated question audio through the ElevenLabs text-to-speech API.
-
-## Testing and quality checks
-
-### Backend tests
-The backend package exposes:
-
-```bash
-npm test
-```
-
-The current automated tests focus on deterministic utility logic, including:
-- recommendation scoring and hashing
-- planner logic helpers
-- OpenAI utility parsing and fallback behavior
-
-### Frontend linting
-The frontend package exposes:
-
-```bash
-npm run lint
-```
-
-### Frontend production build check
-You can verify the frontend production build with:
-
-```bash
-npm run build
-```
-
-## Seeded role catalogue
-
-The current lookup seed includes a broad entry-level role catalogue across:
-- frontend and web development
-- backend and API development
-- QA and test automation
-- DevOps and site reliability
-- cloud engineering
-- security
-- mobile development
-- data and machine learning
-- LLM-enabled application development
-
-This seeded data is what powers role recommendations, skill-to-role lookup, planner gap analysis, and mock interview role selection.
-
-## Notes on local API routing
-
-The frontend API client uses relative `/api` paths. In production that works because the Express server serves both the frontend and API under the same origin.
-
-For local development, your setup should ensure frontend requests to `/api` reach the backend, typically through a Vite dev proxy or an equivalent local reverse-proxy setup.
-
-## Current scope
-
-This project is designed as an academic final-year system with production-style structure rather than a fully productised SaaS platform.
-
-The repository includes core application logic, seeded career data, and deterministic backend tests. It does not currently include separate formal API documentation, CI configuration, containerisation, or infrastructure-as-code in the uploaded source set.
-
-## Summary
-
-This project is not just a chatbot wrapped in a student UI. It is a structured career support application that combines:
-- a maintained skills catalogue
-- user-owned skill evidence and preferences
-- deterministic recommendation and planning logic
-- persistent chat and interview workflows
-- targeted AI assistance where it adds real value
-
-That combination is what makes the system useful: the AI features sit on top of stored student context and a role/skills data model rather than replacing it.
+This repository contains the working application, not a starter scaffold or template. The main setup requirement is a valid PostgreSQL schema plus the seeded role and skill data. Once those are in place, the frontend, API, recommendation engine, planner, chat, and interview flows run as one connected system.
