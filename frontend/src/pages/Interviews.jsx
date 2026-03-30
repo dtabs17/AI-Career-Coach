@@ -218,9 +218,13 @@ export default function Interviews() {
       audio.onpause = () => { if (!audio.ended) { setTtsSpeaking(false); setTtsPaused(true); } };
       audio.onended = () => { setTtsSpeaking(false); setTtsPaused(false); URL.revokeObjectURL(url); };
       audio.onerror = () => { setTtsSpeaking(false); setTtsPaused(false); };
-      audio.play();
+      // Browser autoplay policy rejects play() silently when the AudioContext
+      // is suspended. Awaiting surfaces that rejection so the catch block can
+      // reset state instead of leaving the UI stuck.
+      await audio.play();
     } catch {
-      // setTtsLoading is handled in finally; nothing else to do on fetch failure.
+      setTtsSpeaking(false);
+      setTtsPaused(false);
     } finally {
       setTtsLoading(false);
     }
