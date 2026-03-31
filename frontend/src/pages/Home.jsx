@@ -431,17 +431,17 @@ export default function Home() {
           flexDirection: "column",
           justifyContent: "flex-end",
           overflow: "hidden",
-          px: { xs: 3, sm: 3, md: 10 },
+          px: { xs: 2, md: 5 },
           pt: "54px",
           pb: { xs: 5, md: 7 },
         }}>
 
           <Box sx={{
             position: "absolute",
-            bottom: -120, right: -80,
-            width: 600, height: 600,
+            bottom: -180, right: -140,
+            width: 800, height: 800,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(245,158,11,0.09) 0%, transparent 65%)",
+            background: "radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 55%)",
             pointerEvents: "none",
           }} />
           <Box sx={{
@@ -452,7 +452,6 @@ export default function Home() {
             background: "radial-gradient(circle, rgba(245,158,11,0.04) 0%, transparent 70%)",
             pointerEvents: "none",
           }} />
-
 
           <Box sx={{ position: "relative", zIndex: 1, maxWidth: 620 }}>
             <Typography sx={{
@@ -536,9 +535,14 @@ export default function Home() {
               minHeight: "100dvh",
               display: "flex",
               alignItems: "center",
-              px: { xs: 3, sm: 6, md: 10 },
+              px: { xs: 2, md: 5 },
               py: { xs: 7, md: 0 },
-              bgcolor: i % 2 === 1 ? "rgba(255,255,255,0.018)" : "transparent",
+              position: "relative",
+              // Gradient fade-in/out replaces the hard background colour so sections
+              // blend into each other as the user scrolls rather than cutting at a line.
+              background: i % 2 === 1
+                ? "linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.022) 18%, rgba(255,255,255,0.022) 82%, transparent 100%)"
+                : "transparent",
             }}
           >
             <Box sx={{ maxWidth: 560 }}>
@@ -586,7 +590,7 @@ export default function Home() {
         ))}
 
         <Box sx={{
-          px: { xs: 3, sm: 6, md: 10 },
+          px: { xs: 2, md: 3 },
           py: { xs: 7, md: 9 },
         }}>
           <Typography sx={{
