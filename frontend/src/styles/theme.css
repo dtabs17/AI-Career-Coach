@@ -278,7 +278,7 @@ body:has(.public-shell)::before {
 
 .public-topbar-inner {
   height: var(--dash-topbar-h);
-  padding: 0 24px;
+  padding: 0 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;

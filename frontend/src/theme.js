@@ -132,6 +132,13 @@ const appTheme = createTheme({
           },
           "& .MuiInputBase-input":              { color: "#f1f0ff", fontSize: "0.875rem" },
           "& .MuiInputBase-input::placeholder": { color: "rgba(241,240,255,0.32)", opacity: 1 },
+          // Overrides Chrome's autofill background using box-shadow inset, the only
+          // property that wins against the browser injection without killing autofill suggestions.
+          "& .MuiInputBase-input:-webkit-autofill": {
+            WebkitBoxShadow: "0 0 0 100px #13121e inset",
+            WebkitTextFillColor: "#f1f0ff",
+            caretColor: "#f1f0ff",
+          },
           "& .MuiInputBase-input.Mui-disabled": {
             WebkitTextFillColor: "rgba(241,240,255,0.35)",
             opacity: 1,
