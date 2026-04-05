@@ -553,10 +553,4 @@ Some realistic next steps for the project would be:
 
 ## Author
 
-**David Adebanwo**  
-Final Year Software Development Project
-
-## Repository
-
-GitHub repository:  
-https://github.com/dtabs17/AI-Career-Coach
+**David Adebanwo**
