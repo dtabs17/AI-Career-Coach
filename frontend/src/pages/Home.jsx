@@ -6,8 +6,9 @@ import {
   Box, Typography, Button, CircularProgress, Dialog,
 } from "@mui/material";
 import {
-  AutoAwesome, Chat, ArrowForward, MenuBook,
+  AutoAwesome, Chat, ArrowForward, ArrowBack, MenuBook,
   MicNoneOutlined, CheckCircle, OpenInNew, GetApp,
+  ChecklistRtl, Person, CalendarMonth,
 } from "@mui/icons-material";
 import AppIcon from "../components/AppIcon";
 
@@ -33,41 +34,51 @@ const ONBOARDING_STEPS = [
     n: 1,
     title: "Add your skills",
     desc: "Go to My Skills and add everything you know. Rate each one from 1 (aware of it) to 5 (expert). This is the core input the whole app runs on.",
+    icon: ChecklistRtl,
     to: "/my-skills",
   },
   {
     n: 2,
     title: "Complete your profile",
     desc: "Set your course, academic focus, and preferred roles. The recommendations engine uses this to apply a preference bonus on top of your skill scores.",
+    icon: Person,
     to: "/profile",
   },
   {
     n: 3,
     title: "Run recommendations",
     desc: "The engine scores every IT role against your skills and preferences and ranks them. You will see a breakdown of matched, partial, and missing skills for each role.",
+    icon: AutoAwesome,
     to: "/recommendations",
   },
   {
     n: 4,
     title: "Use the planner and interviews",
     desc: "Pick a target role in the Planner to see your skill gaps and generate a weekly study plan. Use Interviews to practise with AI-generated questions and get scored feedback.",
+    icon: CalendarMonth,
     to: "/planner",
   },
   {
     n: 5,
     title: "The chat knows your profile",
     desc: "Every conversation starts with your skills, preferred roles, and academic focus already loaded. You do not need to explain yourself, just ask.",
+    icon: Chat,
     to: "/chat",
   },
 ];
 
 function OnboardingModal({ open, onClose, onStart }) {
+  const [step, setStep] = useState(0);
+  const current = ONBOARDING_STEPS[step];
+  const isLast = step === ONBOARDING_STEPS.length - 1;
+  const Icon = current.icon;
+
   return (
     <Dialog
       open={open}
-      onClose={() => { }}
+      onClose={() => {}}
       disableEscapeKeyDown
-      maxWidth="sm"
+      maxWidth="xs"
       fullWidth
       PaperProps={{
         sx: {
@@ -76,74 +87,83 @@ function OnboardingModal({ open, onClose, onStart }) {
           borderRadius: "14px",
           boxShadow: "0 24px 64px rgba(0,0,0,0.70)",
           p: { xs: 2.5, sm: 3.5 },
+          minHeight: 340,
+          display: "flex",
+          flexDirection: "column",
         },
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 2.5 }}>
-        <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-            <AppIcon size={28} />
-            <Typography sx={{ fontWeight: 750, fontSize: "1.0625rem", color: "#f1f0ff" }}>
-              Welcome to AI Career Coach
-            </Typography>
-          </Box>
-          <Typography sx={{ fontSize: "0.875rem", color: "rgba(241,240,255,0.50)", lineHeight: 1.55 }}>
-            Here is how to get the most out of the app in five steps.
-          </Typography>
-        </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+        <AppIcon size={24} />
+        <Typography sx={{ fontWeight: 700, fontSize: "0.85rem", color: "rgba(241,240,255,0.45)", letterSpacing: "0.01em" }}>
+          Step {current.n} of {ONBOARDING_STEPS.length}
+        </Typography>
       </Box>
 
-      <Box sx={{ display: "flex", flexDirection: "column" }}>
-        {ONBOARDING_STEPS.map((step, i) => (
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", px: 1 }}>
+        <Box sx={{
+          width: 56, height: 56, borderRadius: "14px",
+          bgcolor: "rgba(245,158,11,0.10)",
+          border: "1px solid rgba(245,158,11,0.25)",
+          display: "grid", placeItems: "center",
+          mb: 2.5,
+        }}>
+          <Icon sx={{ fontSize: 28, color: "#f59e0b" }} />
+        </Box>
+
+        <Typography sx={{ fontWeight: 750, fontSize: "1.125rem", color: "#f1f0ff", mb: 1, lineHeight: 1.3 }}>
+          {current.title}
+        </Typography>
+
+        <Typography sx={{ fontSize: "0.85rem", color: "rgba(241,240,255,0.50)", lineHeight: 1.65, maxWidth: 360 }}>
+          {current.desc}
+        </Typography>
+      </Box>
+
+      <Box sx={{ display: "flex", justifyContent: "center", gap: 0.75, mt: 3, mb: 2.5 }}>
+        {ONBOARDING_STEPS.map((_, i) => (
           <Box
-            key={step.n}
+            key={i}
             sx={{
-              display: "flex",
-              gap: 1.75,
-              py: 1.75,
-              borderBottom: i < ONBOARDING_STEPS.length - 1
-                ? "1px solid rgba(255,255,255,0.05)"
-                : "none",
+              width: i === step ? 20 : 6,
+              height: 6,
+              borderRadius: 3,
+              bgcolor: i === step ? "#f59e0b" : "rgba(255,255,255,0.12)",
+              transition: "all 200ms ease",
             }}
-          >
-            <Box sx={{
-              width: 24, height: 24, borderRadius: "50%", flexShrink: 0, mt: "1px",
-              border: "1px solid rgba(245,158,11,0.35)",
-              bgcolor: "rgba(245,158,11,0.08)",
-              display: "grid", placeItems: "center",
-            }}>
-              <Typography sx={{ fontSize: "0.7rem", fontWeight: 750, color: "#f59e0b", lineHeight: 1 }}>
-                {step.n}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography sx={{ fontWeight: 670, fontSize: "0.875rem", color: "#f1f0ff", mb: 0.35 }}>
-                {step.title}
-              </Typography>
-              <Typography sx={{ fontSize: "0.80rem", color: "rgba(241,240,255,0.45)", lineHeight: 1.55 }}>
-                {step.desc}
-              </Typography>
-            </Box>
-          </Box>
+          />
         ))}
       </Box>
 
-      <Box sx={{ display: "flex", gap: 1.25, mt: 3, flexWrap: "wrap" }}>
+      <Box sx={{ display: "flex", gap: 1.25 }}>
+        {step > 0 ? (
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={() => setStep(step - 1)}
+            startIcon={<ArrowBack sx={{ fontSize: "15px !important" }} />}
+            sx={{ minWidth: 90 }}
+          >
+            Back
+          </Button>
+        ) : (
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={onClose}
+            sx={{ minWidth: 90 }}
+          >
+            Skip
+          </Button>
+        )}
+
         <Button
           variant="contained"
-          onClick={onStart}
-          endIcon={<ArrowForward sx={{ fontSize: "15px !important" }} />}
-          sx={{ flex: 1, minWidth: 160 }}
+          onClick={isLast ? onStart : () => setStep(step + 1)}
+          endIcon={isLast ? null : <ArrowForward sx={{ fontSize: "15px !important" }} />}
+          sx={{ flex: 1 }}
         >
-          Start by adding my skills
-        </Button>
-        <Button
-          variant="outlined"
-          color="secondary"
-          onClick={onClose}
-          sx={{ flex: 1, minWidth: 140 }}
-        >
-          I will explore on my own
+          {isLast ? "Get Started" : "Next"}
         </Button>
       </Box>
     </Dialog>
